@@ -245,7 +245,7 @@ async function loginToSnapchat(page, username, password) {
     await page.keyboard.press("Enter");
 
     if (!(await page.waitForSelector(selectors.passwordInput).catch(() => void 0))) {
-      await updateAccountStatus(username, "Captcha")
+      await updateAccountStatus(username, "CAPTCHA")
       throw new Error("An error occurred while waiting for the password input field to appear or the account is locked!");
     }
     await page.fill(selectors.passwordInput, password);
@@ -562,38 +562,23 @@ async function checkCupidStatusAndReload(page, browser, username) {
   return page;
 }
 
-const AIRTABLE_API_KEY = 'patx9H8Z5CpvEQCZ1.5b02ca1438712d21ac7809e82b6bead7bc2512e54ce0676b6bde72e09eb8e7bf';
-const AIRTABLE_BASE_ID = 'appiaCnT5CjmEukDq';
-const AIRTABLE_TABLE_NAME = 'tblmuTTidcm3zJDSL';
+const DPA_BOT_PLATFORM_API_KEY = 'TManUp_MWTePIXWeiNPaWMGyfAbPEghfGvH2DS-VIG4'
+const DPA_BOT_PLATFORM_URL = 'http://138.201.226.205:8000'
 
 async function updateAccountStatus(username, status) {
-  const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE_NAME}`;
+  const url = `${DPA_BOT_PLATFORM_URL}/accounts/by-username/${username}`;
   const headers = {
-    'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
+    'x-api-key': `${DPA_BOT_PLATFORM_API_KEY}`,
     'Content-Type': 'application/json',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
   };
 
   try {
-    // Fetch the account record from Airtable
-    const response = await axios.get(`${url}?filterByFormula={Username}='${username}'`, { headers });
-    const data = response.data;
-
-    if (data.records.length === 0) {
-      throw new Error(`No account found with username: ${username}`);
-    }
-
-    const accountId = data.records[0].id;
-    const currentStatus = data.records[0].fields.Status || [];
-
-    // Append the new status to the current status
-    const updatedStatus = [...new Set([...currentStatus, status])];
 
     // Update the account status
-    const updateResponse = await axios.patch(`${url}/${accountId}`, {
-      fields: {
-        Status: updatedStatus
-      }
+    const updateResponse = await axios.patch(`${url}`, {
+        status: updatedStatus
+      
     }, { headers });
 
     if (updateResponse.status !== 200) {
@@ -607,30 +592,20 @@ async function updateAccountStatus(username, status) {
 }
 
 async function uploadStateFile(username) {
-  const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE_NAME}`;
+  const url = `${DPA_BOT_PLATFORM_URL}/accounts/${username}/cookies`;
   const headers = {
-    'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
+    'x-api-key': `${DPA_BOT_PLATFORM_API_KEY}`,
     'Content-Type': 'application/json',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
   };
 
   try {
     // Fetch the account record from Airtable
-    const response = await axios.get(`${url}?filterByFormula={Username}='${username}'`, { headers });
-    const data = response.data;
-
-    if (data.records.length === 0) {
-      throw new Error(`No account found with username: ${username}`);
-    }
-
-    const accountId = data.records[0].id;
     const stateFile = fs.readFileSync('state.json', 'utf8');
 
     // Upload the state.json file as a long text field
-    const uploadResponse = await axios.patch(`${url}/${accountId}`, {
-      fields: {
-        Cookies: stateFile
-      }
+    const uploadResponse = await axios.post(`${url}`, {
+      cookies: stateFile
     }, { headers });
 
     if (uploadResponse.status !== 200) {
@@ -644,33 +619,23 @@ async function uploadStateFile(username) {
 }
 
 async function readCookiesForUsername(username) {
-  const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE_NAME}`;
+  const url = `${DPA_BOT_PLATFORM_URL}/cookies/snapchat-account/${username}`;
   const headers = {
-    'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
+    'x-api-key': `${DPA_BOT_PLATFORM_API_KEY}`,
     'Content-Type': 'application/json',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
   };
 
   try {
     // Fetch the account record from Airtable
-    const response = await axios.get(`${url}?filterByFormula={Username}='${username}'`, { headers });
+    const response = await axios.get(`${url}`, { headers });
     const data = response.data;
 
-    if (data.records.length === 0) {
-      throw new Error(`No account found with username: ${username}`);
+    if (response.status !== 200) {
+      throw new Error(`Failed to fetch Cookies for user: ${username}`);
     }
 
-    const accountId = data.records[0].id;
-
-    // Fetch the state.json file from Airtable
-    const stateResponse = await axios.get(`${url}/${accountId}`, { headers });
-    const stateData = stateResponse.data;
-
-    if (stateResponse.status !== 200) {
-      throw new Error(`Failed to fetch state.json file: ${stateResponse.statusText}`);
-    }
-
-    const cookies = JSON.parse(stateData.fields.Cookies).cookies;
+    const cookies = JSON.parse(data).cookies;
     return cookies;
   } catch (error) {
     console.error(`An error occurred while reading cookies for ${username}: ${error.message}`);
@@ -695,7 +660,7 @@ async function start() {
 
   if (!usernameAlive) {
     console.log(`${username} is locked`);
-    await updateAccountStatus(username, "Locked");
+    await updateAccountStatus(username, "LOCKED");
     await browser.close();
     throw new Error(`${username} is locked and cannot proceed further.`);
   }
@@ -804,7 +769,7 @@ async function start() {
       }
     } else {
       console.log("Username locked - stopping");
-      await updateAccountStatus(process.env.USERNAME, "Locked");
+      await updateAccountStatus(process.env.USERNAME, "LOCKED");
       await new Promise(resolve => setTimeout(resolve, 60000)); // Wait for 60 seconds
       break;
     }

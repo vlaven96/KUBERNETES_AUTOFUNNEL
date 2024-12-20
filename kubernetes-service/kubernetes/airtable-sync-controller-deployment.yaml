@@ -33,6 +33,11 @@ spec:
                 secretKeyRef:
                   name: airtable-credentials
                   key: api-key
+            - name: DPA_PLATFORM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: dpa-platform-api-key
+                  key: dpa-platform-api-key
             - name: AIRTABLE_BASE_ID
               valueFrom:
                 configMapKeyRef:
