@@ -2,13 +2,16 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"strings"
 	"time"
-
+	"SnapchatAccount/models"
+	"Proxy/models"
 	"github.com/mehanizm/airtable"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -33,6 +36,9 @@ type AirtableRecord struct {
 	TwoFASecret   string
 }
 
+
+
+
 func getFirstString(field interface{}) (string, bool) {
 	if field == nil {
 		return "", false
@@ -44,6 +50,47 @@ func getFirstString(field interface{}) (string, bool) {
 	str, ok := array[0].(string)
 	return str, ok
 }
+func fetchSnapchatAccounts() ([]SnapchatAccount, error) {
+	log.Println("Fetching Snapchat accounts...")
+
+	// Retrieve the API key from the environment variable
+	apiKey := os.Getenv("DPA_PLATFORM_API_KEY")
+	if apiKey == "" {
+		return nil, fmt.Errorf("DPA_PLATFORM_API_KEY is not set")
+	}
+
+	// Create the request
+	req, err := http.NewRequest("GET", "http://localhost:8000/accounts?status=GOOD_STANDING", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %v", err)
+	}
+
+	// Set the x-api-key header
+	req.Header.Set("x-api-key", apiKey)
+
+	// Perform the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to perform request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Check for a successful response
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	// Parse the response body
+	var accounts []SnapchatAccount
+	if err := json.NewDecoder(resp.Body).Decode(&accounts); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %v", err)
+	}
+
+	log.Printf("Fetched %d Snapchat accounts", len(accounts))
+	return accounts, nil
+}
+
 func fetchAirtableRecords(client *airtable.Client) ([]AirtableRecord, error) {
 	log.Println("Fetching records from Airtable...")
 	table := client.GetTable(os.Getenv("AIRTABLE_BASE_ID"), os.Getenv("AIRTABLE_TABLE_NAME"))
@@ -61,61 +108,7 @@ func fetchAirtableRecords(client *airtable.Client) ([]AirtableRecord, error) {
 			return nil, err
 		}
 
-		for _, record := range records.Records {
-			log.Printf("Processing record with ID: %s", record.ID)
-			username, ok := record.Fields["Username"].(string)
-			if !ok {
-				log.Printf("Skipping record with ID: %s due to missing Username", record.ID)
-				continue
-			}
-			password, ok := record.Fields["Password"].(string)
-			if !ok {
-				log.Printf("Skipping record with ID: %s due to missing Password", record.ID)
-				continue
-			}
-			proxyHost, ok := getFirstString(record.Fields["Proxy_Host"])
-			if !ok {
-				log.Printf("Skipping record with ID: %s due to missing Proxy_Host", record.ID)
-				continue
-			}
-			proxyUsername, ok := getFirstString(record.Fields["Proxy_Username"])
-			if !ok {
-				log.Printf("Skipping record with ID: %s due to missing Proxy_Username", record.ID)
-				continue
-			}
-			proxyPassword, ok := getFirstString(record.Fields["Proxy_Password"])
-			if !ok {
-				log.Printf("Skipping record with ID: %s due to missing Proxy_Password", record.ID)
-				continue
-			}
-			twoFASecret, ok := record.Fields["TWOFA_SECRET"].(string)
-			if !ok {
-				twoFASecret = ""
-			}
-			modelName, ok := record.Fields["Model"].(string)
-			if !ok {
-				log.Printf("Skipping record with ID: %s due to missing Model", record.ID)
-				continue
-			}
-			tag, ok := record.Fields["TAG"].(string)
-			if !ok {
-				tag = ""
-			}
-
-			airtableRecords = append(airtableRecords, AirtableRecord{
-				ID:            record.ID,
-				Username:      username,
-				Password:      password,
-				CupidToken:    os.Getenv("CUPID_TOKEN"),
-				HotbotToken:   os.Getenv("HOTBOT_TOKEN"),
-				Tag:           tag,
-				ModelName:     modelName,
-				ProxyHost:     proxyHost,
-				ProxyUsername: proxyUsername,
-				ProxyPassword: proxyPassword,
-				TwoFASecret:   twoFASecret,
-			})
-		}
+		airtableRecords = append(airtableRecords, processRecords(records.Records)...)
 
 		if records.Offset == "" {
 			break
@@ -127,17 +120,30 @@ func fetchAirtableRecords(client *airtable.Client) ([]AirtableRecord, error) {
 	return airtableRecords, nil
 }
 
-func deploymentExistsForRecord(deployments *appsv1.DeploymentList, record AirtableRecord) bool {
-	log.Printf("Checking if deployment exists for record ID: %s", record.ID)
+func processRecords(records []airtable.Record) []AirtableRecord {
+	var airtableRecords []AirtableRecord
+	for _, record := range records {
+		log.Printf("Processing record with ID: %s", record.ID)
+		if airtableRecord, ok := createAirtableRecord(record); ok {
+			airtableRecords = append(airtableRecords, airtableRecord)
+		}
+	}
+	return airtableRecords
+}
+
+
+func deploymentExistsForAccount(deployments *appsv1.DeploymentList, account SnapchatAccount) bool {
+	log.Printf("Checking if deployment exists for account ID: %d", account.ID)
 	for _, deployment := range deployments.Items {
-		if deployment.Labels["airtable-record-id"] == record.ID {
-			log.Printf("Deployment exists for record ID: %s", record.ID)
+		if deployment.Labels["snapchat-account-id"] == fmt.Sprintf("%d", account.ID) {
+			log.Printf("Deployment exists for account ID: %d", account.ID)
 			return true
 		}
 	}
-	log.Printf("No deployment found for record ID: %s", record.ID)
+	log.Printf("No deployment found for account ID: %d", account.ID)
 	return false
 }
+
 func formatUsername(username string) string {
 	username = strings.ReplaceAll(username, ".", "")
 	username = strings.ReplaceAll(username, "_", "")
@@ -147,15 +153,15 @@ func formatUsername(username string) string {
 	return fmt.Sprintf("%s%s", username, randomDigits)
 }
 
-func createDeploymentForRecord(clientset *kubernetes.Clientset, record AirtableRecord) error {
-	log.Printf("Creating deployment for record ID: %s, Username: %s", record.ID, record.Username)
+func createDeploymentForAccount(clientset *kubernetes.Clientset, account SnapchatAccount) error {
+	log.Printf("Creating deployment for account ID: %d, Username: %s", account.ID, account.Username)
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("sc-%s", formatUsername(record.Username)),
+			Name:      fmt.Sprintf("sc-%s", formatUsername(account.username)),
 			Namespace: os.Getenv("POD_NAMESPACE"),
 			Labels: map[string]string{
 				"app":                "sc",
-				"airtable-record-id": record.ID,
+				"snapchat-account-id": fmt.Sprintf("%d", account.id),
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -163,14 +169,14 @@ func createDeploymentForRecord(clientset *kubernetes.Clientset, record AirtableR
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"app":                "sc",
-					"airtable-record-id": record.ID,
+					"snapchat-account-id": fmt.Sprintf("%d", account.id),
 				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app":                "sc",
-						"airtable-record-id": record.ID,
+						"snapchat-account-id": fmt.Sprintf("%d", account.id),
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -179,31 +185,31 @@ func createDeploymentForRecord(clientset *kubernetes.Clientset, record AirtableR
 							Name:  "sc",
 							Image: "docker.io/adicraciun/afn:latest",
 							Env: []corev1.EnvVar{
-								{Name: "USERNAME", Value: record.Username},
-								{Name: "PASSWORD", Value: record.Password},
+								{Name: "USERNAME", Value: account.username},
+								{Name: "PASSWORD", Value: account.password},
 								{Name: "CUPID_TOKEN", Value: func() string {
-									if record.Tag == "HOTBOT" {
-										return record.HotbotToken
+									if account.Status == "HOTBOT" {
+										return os.Getenv("HOTBOT_TOKEN")
 									}
-									return record.CupidToken
+									return os.Getenv("CUPID_TOKEN")
 								}()},
-								{Name: "MODEL_NAME", Value: record.ModelName},
-								{Name: "PROXY_HOST", Value: record.ProxyHost},
-								{Name: "PROXY_USERNAME", Value: record.ProxyUsername},
-								{Name: "PROXY_PASSWORD", Value: record.ProxyPassword},
-								{Name: "TWOFA_SECRET", Value: record.TwoFASecret},
+								{Name: "MODEL_NAME", Value: account.snapchat_link},
+								{Name: "PROXY_HOST", Value: account.proxy.host},
+								{Name: "PROXY_USERNAME", Value: account.proxy.proxy_username},
+								{Name: "PROXY_PASSWORD", Value: account.proxy.proxy_password},
+								{Name: "TWOFA_SECRET", Value: account.two_fa_secret},
 								{Name: "isHotBot", Value: func() string {
-									if record.Tag == "HOTBOT" {
+									if account.tag == "HOTBOT" {
 										return "true"
 									}
 									return "false"
 								}()},
-								{Name: "PROXY_PORT", Value: "44445"}, // Updated hardcoded PROXY_PORT
+								{Name: "PROXY_PORT", Value: fmt.Sprintf("%d", account.proxy.port)}, // Use the port from the Proxy struct
 							},
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
-									corev1.ResourceMemory: resource.MustParse("1.25Gi"),
-									corev1.ResourceCPU:    resource.MustParse("0.4"),
+									corev1.ResourceMemory: resource.MustParse("1.5Gi"),
+									corev1.ResourceCPU:    resource.MustParse("0.8"),
 								},
 								Limits: corev1.ResourceList{
 									corev1.ResourceMemory: resource.MustParse("4Gi"),
@@ -218,9 +224,9 @@ func createDeploymentForRecord(clientset *kubernetes.Clientset, record AirtableR
 
 	_, err := clientset.AppsV1().Deployments(os.Getenv("POD_NAMESPACE")).Create(context.TODO(), deployment, metav1.CreateOptions{})
 	if err != nil {
-		log.Printf("Error creating deployment for record ID: %s: %v", record.ID, err)
+		log.Printf("Error creating deployment for account ID: %d: %v", account.id, err)
 	} else {
-		log.Printf("Successfully created deployment for record ID: %s", record.ID)
+		log.Printf("Successfully created deployment for account ID: %d", account.id)
 	}
 	return err
 }
@@ -242,7 +248,8 @@ func syncAirtableWithKubernetes(clientset *kubernetes.Clientset, airtableClient 
 	log.Println("Starting sync between Airtable and Kubernetes...")
 
 	// Fetch Airtable records
-	records, err := fetchAirtableRecords(airtableClient)
+	// records, err := fetchAirtableRecords(airtableClient)
+	accounts, err := fetchSnapchatAccounts()
 	if err != nil {
 		log.Printf("Error fetching Airtable records: %v", err)
 		return err
@@ -261,12 +268,12 @@ func syncAirtableWithKubernetes(clientset *kubernetes.Clientset, airtableClient 
 
 	// Create deployments for new Airtable records
 	newDeploymentsCount := 0
-	for _, record := range records {
+	for _, account := range accounts {
 		if newDeploymentsCount >= 50 {
 			log.Println("Reached maximum limit of 50 new deployments")
 			break
 		}
-		if !deploymentExistsForRecord(deployments, record) {
+		if !deploymentExistsForAccount(deployments, account) {
 			// Check for pending pods
 			pendingPods, err := clientset.CoreV1().Pods(os.Getenv("POD_NAMESPACE")).List(context.TODO(), metav1.ListOptions{
 				LabelSelector: "app=sc,status=pending",
@@ -280,9 +287,9 @@ func syncAirtableWithKubernetes(clientset *kubernetes.Clientset, airtableClient 
 				break
 			}
 
-			err = createDeploymentForRecord(clientset, record)
+			err = createDeploymentForAccount(clientset, account)
 			if err != nil {
-				log.Printf("Error creating deployment for record %s: %v", record.ID, err)
+				log.Printf("Error creating deployment for account %d: %v", account.ID, err)
 			} else {
 				newDeploymentsCount++
 			}
