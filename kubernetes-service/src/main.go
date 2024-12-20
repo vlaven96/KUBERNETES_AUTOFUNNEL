@@ -10,8 +10,6 @@ import (
 	"os"
 	"strings"
 	"time"
-	"SnapchatAccount/models"
-	"Proxy/models"
 	"github.com/mehanizm/airtable"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -36,7 +34,25 @@ type AirtableRecord struct {
 	TwoFASecret   string
 }
 
+type Proxy struct {
+	id               int
+	host             string
+	port             int
+	proxy_username   string
+	proxy_password   string
+}
 
+// SnapchatAccount represents the SnapchatAccount model in Go.
+type SnapchatAccount struct {
+	id               string                `json:"id"`
+	username         string             `json:"username"`
+	password         string             `json:"password"`
+	snapchat_link    string             `json:"snapchat_link"`
+	two_fa_secret    string             `json:"two_fa_secret"`
+	status           string  			`json:"status"`
+	proxy            *Proxy             `json:"proxy"` 
+	tag              string             `json:"tag"`
+}
 
 
 func getFirstString(field interface{}) (string, bool) {
@@ -91,56 +107,15 @@ func fetchSnapchatAccounts() ([]SnapchatAccount, error) {
 	return accounts, nil
 }
 
-func fetchAirtableRecords(client *airtable.Client) ([]AirtableRecord, error) {
-	log.Println("Fetching records from Airtable...")
-	table := client.GetTable(os.Getenv("AIRTABLE_BASE_ID"), os.Getenv("AIRTABLE_TABLE_NAME"))
-	viewName := os.Getenv("AIRTABLE_VIEW_NAME")
-
-	var airtableRecords []AirtableRecord
-	offset := ""
-	for {
-		records, err := table.GetRecords().
-			FromView(viewName).
-			WithOffset(offset).
-			Do()
-		if err != nil {
-			log.Printf("Error fetching records from Airtable: %v", err)
-			return nil, err
-		}
-
-		airtableRecords = append(airtableRecords, processRecords(records.Records)...)
-
-		if records.Offset == "" {
-			break
-		}
-		offset = records.Offset
-	}
-
-	log.Printf("Fetched %d records from Airtable", len(airtableRecords))
-	return airtableRecords, nil
-}
-
-func processRecords(records []airtable.Record) []AirtableRecord {
-	var airtableRecords []AirtableRecord
-	for _, record := range records {
-		log.Printf("Processing record with ID: %s", record.ID)
-		if airtableRecord, ok := createAirtableRecord(record); ok {
-			airtableRecords = append(airtableRecords, airtableRecord)
-		}
-	}
-	return airtableRecords
-}
-
-
 func deploymentExistsForAccount(deployments *appsv1.DeploymentList, account SnapchatAccount) bool {
-	log.Printf("Checking if deployment exists for account ID: %d", account.ID)
+	log.Printf("Checking if deployment exists for account ID: %d", account.id)
 	for _, deployment := range deployments.Items {
-		if deployment.Labels["snapchat-account-id"] == fmt.Sprintf("%d", account.ID) {
-			log.Printf("Deployment exists for account ID: %d", account.ID)
+		if deployment.Labels["snapchat-account-id"] == fmt.Sprintf("%d", account.id) {
+			log.Printf("Deployment exists for account ID: %d", account.id)
 			return true
 		}
 	}
-	log.Printf("No deployment found for account ID: %d", account.ID)
+	log.Printf("No deployment found for account ID: %d", account.id)
 	return false
 }
 
@@ -154,7 +129,7 @@ func formatUsername(username string) string {
 }
 
 func createDeploymentForAccount(clientset *kubernetes.Clientset, account SnapchatAccount) error {
-	log.Printf("Creating deployment for account ID: %d, Username: %s", account.ID, account.Username)
+	log.Printf("Creating deployment for account ID: %d, Username: %s", account.id, account.username)
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("sc-%s", formatUsername(account.username)),
@@ -188,7 +163,7 @@ func createDeploymentForAccount(clientset *kubernetes.Clientset, account Snapcha
 								{Name: "USERNAME", Value: account.username},
 								{Name: "PASSWORD", Value: account.password},
 								{Name: "CUPID_TOKEN", Value: func() string {
-									if account.Status == "HOTBOT" {
+									if account.status == "HOTBOT" {
 										return os.Getenv("HOTBOT_TOKEN")
 									}
 									return os.Getenv("CUPID_TOKEN")
@@ -231,11 +206,11 @@ func createDeploymentForAccount(clientset *kubernetes.Clientset, account Snapcha
 	return err
 }
 
-func recordExistsForDeployment(records []AirtableRecord, deployment appsv1.Deployment) bool {
-	recordID := deployment.Labels["airtable-record-id"]
+func recordExistsForDeployment(records []SnapchatAccount, deployment appsv1.Deployment) bool {
+	recordID := deployment.Labels["snapchat-account-id"]
 	log.Printf("Checking if record exists for deployment with record ID: %s", recordID)
 	for _, record := range records {
-		if record.ID == recordID {
+		if record.id == recordID {
 			log.Printf("Record exists for deployment with record ID: %s", recordID)
 			return true
 		}
@@ -289,7 +264,7 @@ func syncAirtableWithKubernetes(clientset *kubernetes.Clientset, airtableClient 
 
 			err = createDeploymentForAccount(clientset, account)
 			if err != nil {
-				log.Printf("Error creating deployment for account %d: %v", account.ID, err)
+				log.Printf("Error creating deployment for account %d: %v", account.id, err)
 			} else {
 				newDeploymentsCount++
 			}
@@ -299,7 +274,7 @@ func syncAirtableWithKubernetes(clientset *kubernetes.Clientset, airtableClient 
 
 	// Delete deployments that don't have corresponding Airtable records
 	for _, deployment := range deployments.Items {
-		if !recordExistsForDeployment(records, deployment) {
+		if !recordExistsForDeployment(accounts, deployment) {
 			log.Printf("Deleting deployment with name: %s", deployment.Name)
 			err := clientset.AppsV1().Deployments(os.Getenv("POD_NAMESPACE")).Delete(context.TODO(), deployment.Name, metav1.DeleteOptions{})
 			if err != nil {
