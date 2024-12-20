@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airtable-sync-controller
+  namespace: default
+  labels:
+    app: airtable-sync-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airtable-sync-controller
+  template:
+    metadata:
+      labels:
+        app: airtable-sync-controller
+    spec:
+      serviceAccountName: airtable-sync-controller
+      containers:
+        - name: controller
+          image: adicraciun/airtable-sync-controller:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          env:
+            - name: AIRTABLE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: airtable-credentials
+                  key: api-key
+            - name: AIRTABLE_BASE_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: airtable-config
+                  key: base-id
+            - name: AIRTABLE_TABLE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: airtable-config
+                  key: table-name
+            - name: AIRTABLE_VIEW_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: airtable-config
+                  key: view-name
+            - name: CUPID_TOKEN
+              valueFrom:
+                configMapKeyRef:
+                  name: airtable-config
+                  key: cupid-token
+            - name: HOTBOT_TOKEN
+              valueFrom:
+                configMapKeyRef:
+                  name: airtable-config
+                  key: hotbot-token
+            - name: SYNC_INTERVAL
+              value: "60" # 1 minutes in seconds
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      terminationGracePeriodSeconds: 30

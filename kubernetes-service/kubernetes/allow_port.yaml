@@ -1,0 +1,60 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-ports
+  namespace: default
+spec:
+  podSelector: {} # Selects all pods in the namespace
+  policyTypes:
+    - Egress
+    - Ingress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0 # Allows traffic to all IPs, adjust accordingly
+      ports:
+        - protocol: TCP
+          port: 80 # Allow port 80 (HTTP)
+        - protocol: TCP
+          port: 443 # Allow port 443 (HTTPS)
+        - protocol: UDP
+          port: 53 # Allow port 53 (DNS)
+        - protocol: TCP
+          port: 44444 # Allow proxy port
+        - protocol: TCP
+          port: 6443 # Allow control plane port (Kubernetes API server)
+        - protocol: TCP
+          port: 2379 # Allow control plane port (etcd server client API)
+        - protocol: TCP
+          port: 2380 # Allow control plane port (etcd server peer API)
+        - protocol: TCP
+          port: 10250 # Allow control plane port (kubelet API)
+        - protocol: TCP
+          port: 10251 # Allow control plane port (kube-scheduler)
+        - protocol: TCP
+          port: 10252 # Allow control plane port (kube-controller-manager)
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 0.0.0.0/0 # Allows traffic from all IPs, adjust accordingly
+      ports:
+        - protocol: TCP
+          port: 80 # Allow port 80 (HTTP)
+        - protocol: TCP
+          port: 443 # Allow port 443 (HTTPS)
+        - protocol: UDP
+          port: 53 # Allow port 53 (DNS)
+        - protocol: TCP
+          port: 44444 # Allow proxy port
+        - protocol: TCP
+          port: 6443 # Allow control plane port (Kubernetes API server)
+        - protocol: TCP
+          port: 2379 # Allow control plane port (etcd server client API)
+        - protocol: TCP
+          port: 2380 # Allow control plane port (etcd server peer API)
+        - protocol: TCP
+          port: 10250 # Allow control plane port (kubelet API)
+        - protocol: TCP
+          port: 10251 # Allow control plane port (kube-scheduler)
+        - protocol: TCP
+          port: 10252 # Allow control plane port (kube-controller-manager)
