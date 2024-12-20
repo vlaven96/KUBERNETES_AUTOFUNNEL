@@ -1,0 +1,61 @@
+{
+  "manifest_version": 3,
+  "name": "Hotbot",
+  "version": "1.0.1",
+  "description": "Extension for Snapchat.com",
+  "action": {},
+  "options_ui": {
+    "page": "./src/scripts/options/options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "icons": {
+    "16": "./assets/icon-16.png",
+    "48": "./assets/icon-48.png",
+    "128": "./assets/icon-128.png"
+  },
+  "host_permissions": [
+    "*://*/*"
+  ],
+  "permissions": [
+    "debugger",
+    "storage",
+    "unlimitedStorage",
+    "webRequest",
+    "declarativeNetRequest",
+    "tabs",
+    "notifications",
+    "nativeMessaging",
+    "desktopCapture",
+    "activeTab"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.snapchat.com/*",
+        "https://web.snapchat.com/*"
+      ],
+      "js": [
+        "./content.js",
+        "./auto.js",
+        "./spoof.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "matches": [
+        "https://*/*",
+        "http://*/*"
+      ],
+      "resources": [
+        "*"
+      ]
+    }
+  ]
+}

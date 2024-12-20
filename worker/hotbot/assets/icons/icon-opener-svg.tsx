@@ -1,0 +1,16 @@
+import React from "react";
+
+interface IconOpenerSVGProps {
+  fill?: string;
+}
+function IconOpenerSVG({ fill }: IconOpenerSVGProps) {
+  return (
+<svg width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="34" height="34" rx="8" fill={fill} />
+<path d="M10 23V18.5L16.3158 17L10 15.5V11L25 17L10 23Z" fill="white"/>
+</svg>
+
+  );
+}
+
+export default IconOpenerSVG;

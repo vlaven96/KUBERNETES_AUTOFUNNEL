@@ -1,0 +1,11 @@
+2024/12/09-18:29:39.329 a003 Creating DB /Users/adrian/Downloads/AutoFunnel/worker/data/Default/Local Extension Settings/agiianhjoknekpojmphjgolbjdkacidn since it was missing.
+2024/12/09-18:29:39.359 a003 Reusing MANIFEST /Users/adrian/Downloads/AutoFunnel/worker/data/Default/Local Extension Settings/agiianhjoknekpojmphjgolbjdkacidn/MANIFEST-000001
+2024/12/09-18:29:44.676 a003 Level-0 table #5: started
+2024/12/09-18:29:44.689 a003 Level-0 table #5: 10440996 bytes OK
+2024/12/09-18:29:44.701 a003 Delete type=0 #3
+2024/12/09-18:29:46.237 a003 Level-0 table #7: started
+2024/12/09-18:29:46.249 a003 Level-0 table #7: 7128083 bytes OK
+2024/12/09-18:29:46.262 a003 Delete type=0 #4
+2024/12/09-18:30:30.583 a003 Level-0 table #9: started
+2024/12/09-18:30:30.602 a003 Level-0 table #9: 9298031 bytes OK
+2024/12/09-18:30:30.614 a003 Delete type=0 #6
