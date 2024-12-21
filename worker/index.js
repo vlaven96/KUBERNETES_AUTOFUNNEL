@@ -214,19 +214,21 @@ async function launchBrowser() {
   console.log(`Anonymized Proxy URL: ${newProxyUrl}`);
 
   const extensionPath = isHotBot == 'true' ? './hotbot' : './cupidbot';
-
+  const args = [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    `--disable-extensions-except=${extensionPath}`,
+    `--load-extension=${extensionPath}`,
+    '--window-size=1920,1080', // Set window size to standard screen resolution
+    '--use-fake-ui-for-media-stream', // Enable webcam permissions for all websites
+    '--use-fake-device-for-media-stream' // Use fake device for media stream
+  ];
+  if (!DEBUG_MODE) {
+    args.unshift('--headless=new');
+  }
   const browser = await chromium.launchPersistentContext('./data', {
     headless: false, // Set to true to run in headless mode
-    args: [
-      '--headless=new',
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      `--disable-extensions-except=${extensionPath}`,
-      `--load-extension=${extensionPath}`,
-      '--window-size=1920,1080', // Set window size to standard screen resolution
-      '--use-fake-ui-for-media-stream', // Enable webcam permissions for all websites
-      '--use-fake-device-for-media-stream' // Use fake device for media stream
-    ],
+    args: args,
     proxy: {
       server: newProxyUrl,
     },
@@ -408,6 +410,7 @@ async function enableCupid(page, cupid_token, model_name) {
       return;
     }
   } catch (error) { 
+
     console.log("Cupid probable not enabled! Enabling it!");
   }
 
@@ -588,7 +591,7 @@ async function updateAccountStatus(username, status) {
 
     // Update the account status
     const updateResponse = await axios.patch(`${url}`, {
-        status: updatedStatus
+        status: status
       
     }, { headers });
 
