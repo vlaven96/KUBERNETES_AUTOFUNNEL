@@ -37,7 +37,7 @@ type AirtableRecord struct {
 type Proxy struct {
 	ID            int    `json:"id"`
 	Host          string `json:"host"`
-	Port          int    `json:"port"`
+	Port          string    `json:"port"`
 	ProxyUsername string `json:"proxy_username"`
 	ProxyPassword string `json:"proxy_password"`
 }
@@ -182,7 +182,7 @@ func createDeploymentForAccount(clientset *kubernetes.Clientset, account Snapcha
 									}
 									return "false"
 								}()},
-								{Name: "PROXY_PORT", Value: fmt.Sprintf("%d", account.Proxy.Port)},
+								{Name: "PROXY_PORT", Value: account.Proxy.Port},
 							},
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{

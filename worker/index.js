@@ -197,7 +197,7 @@ async function launchBrowser() {
   console.log(`Model Name: ${model_name}`);
   console.log(`isHotBot: ${isHotBot}`);
 
-  const proxyUrl = `socks5://${proxyUsername}:${proxyPassword}@${proxyHost}:${proxyPort}`;
+  const proxyUrl = `http://${proxyUsername}:${proxyPassword}@${proxyHost}:${proxyPort}`;
   console.log(`Proxy URL: ${proxyUrl}`);
   const newProxyUrl = await ProxyChain.anonymizeProxy(proxyUrl);
   console.log(`Anonymized Proxy URL: ${newProxyUrl}`);
