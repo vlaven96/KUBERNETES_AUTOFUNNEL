@@ -562,7 +562,7 @@ async function checkCupidStatusAndReload(page, browser, username) {
   return page;
 }
 
-const DPA_BOT_PLATFORM_API_KEY = 'TManUp_MWTePIXWeiNPaWMGyfAbPEghfGvH2DS-VIG4'
+const DPA_BOT_PLATFORM_API_KEY = 'HC18ytNrQXnsI1X33UfgxMmZq2SWwvy5MTBtsZrAUck'
 const DPA_BOT_PLATFORM_URL = 'http://138.201.226.205:8000'
 
 async function updateAccountStatus(username, status) {
@@ -629,7 +629,7 @@ async function readCookiesForUsername(username) {
   try {
     // Fetch the account record from Airtable
     const response = await axios.get(`${url}`, { headers });
-    const data = response.data;
+    const data = response.data.data;
 
     if (response.status !== 200) {
       throw new Error(`Failed to fetch Cookies for user: ${username}`);
