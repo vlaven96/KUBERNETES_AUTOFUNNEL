@@ -76,7 +76,7 @@ func fetchSnapchatAccounts() ([]SnapchatAccount, error) {
 	}
 
 	// Create the request
-	req, err := http.NewRequest("GET", "http://localhost:8000/accounts?status=GOOD_STANDING", nil)
+	req, err := http.NewRequest("GET", "http://138.201.226.205:8000/accounts?status=GOOD_STANDING", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
