@@ -6,6 +6,16 @@ const ProxyChain = require('proxy-chain');
 const axios = require('axios');
 const { authenticator } = require('otplib');
 
+const args = process.argv.slice(2); // Get command-line arguments
+const DEBUG_MODE = args.includes('--debug'); // Check if --debug is passed
+
+if (DEBUG_MODE) {
+  console.log("Debug mode enabled. Loading debug configuration...");
+  require('./debug-config.js'); // Load and execute the debug configuration file
+} else {
+  console.log("Debug mode not enabled. Using environment variables.");
+}
+
 const selectors = {
   accessTokenInput: "input.MuiInput-input",
   submitButton: "[role='tabpanel'] button.MuiButton-root[type='button']",
@@ -97,7 +107,8 @@ async function click(page, selector) {
 }
 
 async function wait(page) {
-  const waitTime = Math.floor(Math.random() * 10000) + 10000; // Random time between 10000ms (10s) and 20000ms (20s)
+  const waitTimeVar = DEBUG_MODE ? 1000 : 10000; 
+  const waitTime = Math.floor(Math.random() * waitTimeVar) + waitTimeVar; // Random time between 10000ms (10s) and 20000ms (20s)
   await page.waitForTimeout(waitTime);
 }
 
@@ -181,7 +192,7 @@ async function enableMatchLocation(page) {
 }
 
 async function launchBrowser() {
-  const username = process.env.USERNAME;
+  const username = process.env.ACCOUNT_USERNAME;
   const password = process.env.PASSWORD;
   const cupid_token = process.env.CUPID_TOKEN;
   const model_name = process.env.MODEL_NAME;
@@ -203,19 +214,21 @@ async function launchBrowser() {
   console.log(`Anonymized Proxy URL: ${newProxyUrl}`);
 
   const extensionPath = isHotBot == 'true' ? './hotbot' : './cupidbot';
-
+  const args = [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    `--disable-extensions-except=${extensionPath}`,
+    `--load-extension=${extensionPath}`,
+    '--window-size=1920,1080', // Set window size to standard screen resolution
+    '--use-fake-ui-for-media-stream', // Enable webcam permissions for all websites
+    '--use-fake-device-for-media-stream' // Use fake device for media stream
+  ];
+  if (!DEBUG_MODE) {
+    args.unshift('--headless=new');
+  }
   const browser = await chromium.launchPersistentContext('./data', {
     headless: false, // Set to true to run in headless mode
-    args: [
-      '--headless=new',
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      `--disable-extensions-except=${extensionPath}`,
-      `--load-extension=${extensionPath}`,
-      '--window-size=1920,1080', // Set window size to standard screen resolution
-      '--use-fake-ui-for-media-stream', // Enable webcam permissions for all websites
-      '--use-fake-device-for-media-stream' // Use fake device for media stream
-    ],
+    args: args,
     proxy: {
       server: newProxyUrl,
     },
@@ -397,6 +410,7 @@ async function enableCupid(page, cupid_token, model_name) {
       return;
     }
   } catch (error) { 
+
     console.log("Cupid probable not enabled! Enabling it!");
   }
 
@@ -577,7 +591,7 @@ async function updateAccountStatus(username, status) {
 
     // Update the account status
     const updateResponse = await axios.patch(`${url}`, {
-        status: updatedStatus
+        status: status
       
     }, { headers });
 
@@ -650,7 +664,7 @@ async function start() {
   }
   console.log("All pages have been closed.");
 
-  const username = process.env.USERNAME;
+  const username = process.env.ACCOUNT_USERNAME;
   const password = process.env.PASSWORD;
   const cupid_token = process.env.CUPID_TOKEN;
   const model_name = process.env.MODEL_NAME;
@@ -757,8 +771,9 @@ async function start() {
 
 (async () => {
   deleteFolderRecursive('./data');
+  console.log(process.env);
   while (true) {
-    let usernameAlive = await isUsernameAlive(process.env.USERNAME);
+    let usernameAlive = await isUsernameAlive(process.env.ACCOUNT_USERNAME);
     if (usernameAlive) {
       try {
         await start();
@@ -769,7 +784,7 @@ async function start() {
       }
     } else {
       console.log("Username locked - stopping");
-      await updateAccountStatus(process.env.USERNAME, "LOCKED");
+      await updateAccountStatus(process.env.ACCOUNT_USERNAME, "LOCKED");
       await new Promise(resolve => setTimeout(resolve, 60000)); // Wait for 60 seconds
       break;
     }

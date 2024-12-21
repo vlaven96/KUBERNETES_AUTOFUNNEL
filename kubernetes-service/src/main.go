@@ -163,7 +163,7 @@ func createDeploymentForAccount(clientset *kubernetes.Clientset, account Snapcha
 							Name:  "sc",
 							Image: "docker.io/adicraciun/afn:latest",
 							Env: []corev1.EnvVar{
-								{Name: "USERNAME", Value: account.Username},
+								{Name: "ACCOUNT_USERNAME", Value: account.Username},
 								{Name: "PASSWORD", Value: account.Password},
 								{Name: "CUPID_TOKEN", Value: func() string {
 									if account.Status == "HOTBOT" {
