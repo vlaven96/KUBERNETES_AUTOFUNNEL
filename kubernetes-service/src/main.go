@@ -35,23 +35,22 @@ type AirtableRecord struct {
 }
 
 type Proxy struct {
-	id               int
-	host             string
-	port             int
-	proxy_username   string
-	proxy_password   string
+	ID            int    `json:"id"`
+	Host          string `json:"host"`
+	Port          string    `json:"port"`
+	ProxyUsername string `json:"proxy_username"`
+	ProxyPassword string `json:"proxy_password"`
 }
 
-// SnapchatAccount represents the SnapchatAccount model in Go.
 type SnapchatAccount struct {
-	id               string                `json:"id"`
-	username         string             `json:"username"`
-	password         string             `json:"password"`
-	snapchat_link    string             `json:"snapchat_link"`
-	two_fa_secret    string             `json:"two_fa_secret"`
-	status           string  			`json:"status"`
-	proxy            *Proxy             `json:"proxy"` 
-	tag              string             `json:"tag"`
+	ID           int    `json:"id"`
+	Username     string `json:"username"`
+	Password     string `json:"password"`
+	SnapchatLink string `json:"snapchat_link"`
+	TwoFASecret  string `json:"two_fa_secret"`
+	Status       string `json:"status"`
+	Proxy        *Proxy `json:"proxy"`
+	Tag          string `json:"tag"`
 }
 
 
@@ -76,7 +75,7 @@ func fetchSnapchatAccounts() ([]SnapchatAccount, error) {
 	}
 
 	// Create the request
-	req, err := http.NewRequest("GET", "http://localhost:8000/accounts?status=GOOD_STANDING", nil)
+	req, err := http.NewRequest("GET", "http://138.201.226.205:8000/accounts?status=GOOD_STANDING", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
@@ -102,20 +101,24 @@ func fetchSnapchatAccounts() ([]SnapchatAccount, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&accounts); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
-
+	log.Printf("Displaying all accounts after Decode_______________")
+	for _, account := range accounts {
+		fmt.Printf("%+v\n", account)
+	}
+	
 	log.Printf("Fetched %d Snapchat accounts", len(accounts))
 	return accounts, nil
 }
 
 func deploymentExistsForAccount(deployments *appsv1.DeploymentList, account SnapchatAccount) bool {
-	log.Printf("Checking if deployment exists for account ID: %d", account.id)
+	log.Printf("Checking if deployment exists for account ID: %d", account.ID)
 	for _, deployment := range deployments.Items {
-		if deployment.Labels["snapchat-account-id"] == fmt.Sprintf("%d", account.id) {
-			log.Printf("Deployment exists for account ID: %d", account.id)
+		if deployment.Labels["snapchat-account-id"] == fmt.Sprintf("%d", account.ID) {
+			log.Printf("Deployment exists for account ID: %d", account.ID)
 			return true
 		}
 	}
-	log.Printf("No deployment found for account ID: %d", account.id)
+	log.Printf("No deployment found for account ID: %d", account.ID)
 	return false
 }
 
@@ -129,14 +132,14 @@ func formatUsername(username string) string {
 }
 
 func createDeploymentForAccount(clientset *kubernetes.Clientset, account SnapchatAccount) error {
-	log.Printf("Creating deployment for account ID: %d, Username: %s", account.id, account.username)
+	log.Printf("Creating deployment for account ID: %d, Username: %s", account.ID, account.Username)
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("sc-%s", formatUsername(account.username)),
+			Name:      fmt.Sprintf("sc-%s", formatUsername(account.Username)),
 			Namespace: os.Getenv("POD_NAMESPACE"),
 			Labels: map[string]string{
 				"app":                "sc",
-				"snapchat-account-id": fmt.Sprintf("%d", account.id),
+				"snapchat-account-id": fmt.Sprintf("%d", account.ID),
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -144,14 +147,14 @@ func createDeploymentForAccount(clientset *kubernetes.Clientset, account Snapcha
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"app":                "sc",
-					"snapchat-account-id": fmt.Sprintf("%d", account.id),
+					"snapchat-account-id": fmt.Sprintf("%d", account.ID),
 				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app":                "sc",
-						"snapchat-account-id": fmt.Sprintf("%d", account.id),
+						"snapchat-account-id": fmt.Sprintf("%d", account.ID),
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -160,26 +163,26 @@ func createDeploymentForAccount(clientset *kubernetes.Clientset, account Snapcha
 							Name:  "sc",
 							Image: "docker.io/adicraciun/afn:latest",
 							Env: []corev1.EnvVar{
-								{Name: "USERNAME", Value: account.username},
-								{Name: "PASSWORD", Value: account.password},
+								{Name: "USERNAME", Value: account.Username},
+								{Name: "PASSWORD", Value: account.Password},
 								{Name: "CUPID_TOKEN", Value: func() string {
-									if account.status == "HOTBOT" {
+									if account.Status == "HOTBOT" {
 										return os.Getenv("HOTBOT_TOKEN")
 									}
 									return os.Getenv("CUPID_TOKEN")
 								}()},
-								{Name: "MODEL_NAME", Value: account.snapchat_link},
-								{Name: "PROXY_HOST", Value: account.proxy.host},
-								{Name: "PROXY_USERNAME", Value: account.proxy.proxy_username},
-								{Name: "PROXY_PASSWORD", Value: account.proxy.proxy_password},
-								{Name: "TWOFA_SECRET", Value: account.two_fa_secret},
+								{Name: "MODEL_NAME", Value: account.SnapchatLink},
+								{Name: "PROXY_HOST", Value: account.Proxy.Host},
+								{Name: "PROXY_USERNAME", Value: account.Proxy.ProxyUsername},
+								{Name: "PROXY_PASSWORD", Value: account.Proxy.ProxyPassword},
+								{Name: "TWOFA_SECRET", Value: account.TwoFASecret},
 								{Name: "isHotBot", Value: func() string {
-									if account.tag == "HOTBOT" {
+									if account.Tag == "HOTBOT" {
 										return "true"
 									}
 									return "false"
 								}()},
-								{Name: "PROXY_PORT", Value: fmt.Sprintf("%d", account.proxy.port)}, // Use the port from the Proxy struct
+								{Name: "PROXY_PORT", Value: account.Proxy.Port},
 							},
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
@@ -199,9 +202,9 @@ func createDeploymentForAccount(clientset *kubernetes.Clientset, account Snapcha
 
 	_, err := clientset.AppsV1().Deployments(os.Getenv("POD_NAMESPACE")).Create(context.TODO(), deployment, metav1.CreateOptions{})
 	if err != nil {
-		log.Printf("Error creating deployment for account ID: %d: %v", account.id, err)
+		log.Printf("Error creating deployment for account ID: %d: %v", account.ID, err)
 	} else {
-		log.Printf("Successfully created deployment for account ID: %d", account.id)
+		log.Printf("Successfully created deployment for account ID: %d", account.ID)
 	}
 	return err
 }
@@ -210,7 +213,7 @@ func recordExistsForDeployment(records []SnapchatAccount, deployment appsv1.Depl
 	recordID := deployment.Labels["snapchat-account-id"]
 	log.Printf("Checking if record exists for deployment with record ID: %s", recordID)
 	for _, record := range records {
-		if record.id == recordID {
+		if fmt.Sprintf("%d", record.ID) == recordID {
 			log.Printf("Record exists for deployment with record ID: %s", recordID)
 			return true
 		}
@@ -264,7 +267,7 @@ func syncAirtableWithKubernetes(clientset *kubernetes.Clientset, airtableClient 
 
 			err = createDeploymentForAccount(clientset, account)
 			if err != nil {
-				log.Printf("Error creating deployment for account %d: %v", account.id, err)
+				log.Printf("Error creating deployment for account %d: %v", account.ID, err)
 			} else {
 				newDeploymentsCount++
 			}

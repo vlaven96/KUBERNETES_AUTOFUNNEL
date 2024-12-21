@@ -1,5 +1,5 @@
 # Use an official Node.js runtime as a parent image for amd64 architecture
-FROM node:18-slim
+FROM --platform=linux/amd64 node:18-slim
 
 # Install necessary dependencies for Puppeteer and pnpm
 RUN apt-get update && apt-get install -y \
@@ -53,8 +53,8 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install
 
 # Install Playwright
-RUN pnpm dlx playwright install
-RUN pnpm exec playwright install
+RUN pnpm dlx playwright install chromium
+RUN pnpm exec playwright install chromium
 
 # Expose ports 44444, 44445, 44443
 EXPOSE 44444 44445 44443
