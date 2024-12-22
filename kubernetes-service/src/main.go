@@ -171,7 +171,7 @@ func createDeploymentForAccount(clientset *kubernetes.Clientset, account Snapcha
 									}
 									return os.Getenv("CUPID_TOKEN")
 								}()},
-								{Name: "MODEL_NAME", Value: account.SnapchatLink},
+								{Name: "MODEL_NAME", Value: "Leah"},
 								{Name: "PROXY_HOST", Value: account.Proxy.Host},
 								{Name: "PROXY_USERNAME", Value: account.Proxy.ProxyUsername},
 								{Name: "PROXY_PASSWORD", Value: account.Proxy.ProxyPassword},
