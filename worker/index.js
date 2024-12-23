@@ -447,24 +447,29 @@ async function enableCupid(page, cupid_token, model_name) {
   });
   console.log("Access token filled...");
   await wait(page);
-  const clearButtonSelector = '[title="Clear"]';
-  const clearButton = await page.$(clearButtonSelector);
-  if (clearButton) {
-    console.log("Clear button found, clicking it even if not visible...");
-    await clearButton.click({ force: true });
-    await wait(page);
-  } else {
-    console.log("Clear button not found, proceeding...");
-  }
-  await page.waitForSelector(selectors.modelInput)
-  console.log("Filling model name...");
-  await clearInput(selectors.modelInput, page);
-  await page.fill(selectors.modelInput, model_name);
-  await page.waitForSelector(selectors.firstPresetResult)
-  await click(page, selectors.firstPresetResult, { force: true });
+
+  // TEMPORARY FIX BECAUSE WEIRD INTERACTION
+  
+  // const clearButtonSelector = '[title="Clear"]';
+  // const clearButton = await page.$(clearButtonSelector);
+  // if (clearButton) {
+  //   console.log("Clear button found, clicking it even if not visible...");
+  //   await clearButton.click({ force: true });
+  //   await wait(page);
+  // } else {
+  //   console.log("Clear button not found, proceeding...");
+  // }
   try {
-    await click(page, selectors.firstPresetResult, { force: true }); 
-  } catch(error) {}
+    await page.waitForSelector(selectors.modelInput);
+    console.log("Filling model name...");
+    await clearInput(selectors.modelInput, page);
+    await page.fill(selectors.modelInput, model_name);
+    await page.waitForSelector(selectors.firstPresetResult);
+    await click(page, selectors.firstPresetResult, { force: true });
+    await click(page, selectors.firstPresetResult, { force: true });
+  } catch (error) {
+    console.log("Model already exists, proceeding with the existing model...");
+  }
 
   await wait(page);
 
