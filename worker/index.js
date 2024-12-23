@@ -107,7 +107,7 @@ async function click(page, selector) {
 }
 
 async function wait(page) {
-  const waitTimeVar = DEBUG_MODE ? 1500 : 10000; 
+  const waitTimeVar = DEBUG_MODE ? 2000 : 10000; 
   const waitTime = Math.floor(Math.random() * waitTimeVar) + waitTimeVar; // Random time between 10000ms (10s) and 20000ms (20s)
   await page.waitForTimeout(waitTime);
 }
@@ -385,6 +385,19 @@ async function enableCupid(page, cupid_token, model_name) {
      await enableHotBot(page, cupid_token, model_name);
      return;
   }
+  await wait(page);
+
+  console.log("Clicking on the 'Next' button...");
+  const nextButton = await page.$$('span:has-text("Next")');
+  if (nextButton.length > 0) {
+    await nextButton[0].click();
+    console.log("Clicked on the 'Next' button");
+    await wait(page);
+  } else {
+    console.log("Could not find the 'Next' button");
+  }
+
+  
   console.log("Reloading page because Cupid has issues to load");
   await page.reload();
   console.log("Waiting for Cupid to be Enabled");
@@ -437,8 +450,8 @@ async function enableCupid(page, cupid_token, model_name) {
   const clearButtonSelector = '[title="Clear"]';
   const clearButton = await page.$(clearButtonSelector);
   if (clearButton) {
-    console.log("Clear button found, clicking it...");
-    await clearButton.click();
+    console.log("Clear button found, clicking it even if not visible...");
+    await clearButton.click({ force: true });
     await wait(page);
   } else {
     console.log("Clear button not found, proceeding...");
