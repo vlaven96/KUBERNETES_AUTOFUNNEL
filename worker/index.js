@@ -456,22 +456,16 @@ async function enableCupid(page, cupid_token, model_name) {
   } else {
     console.log("Clear button not found, proceeding...");
   }
-  await retry(async () => {
-    if (await page.waitForSelector(selectors.modelInput)) {
-      console.log("Filling model name...");
+  await page.waitForSelector(selectors.modelInput)
+  console.log("Filling model name...");
+  await clearInput(selectors.modelInput, page);
+  await page.fill(selectors.modelInput, model_name);
+  await page.waitForSelector(selectors.firstPresetResult)
+  await click(page, selectors.firstPresetResult, { force: true });
+  try {
+    await click(page, selectors.firstPresetResult, { force: true }); 
+  } catch(error) {}
 
-      await clearInput(selectors.modelInput, page);
-      await page.fill(selectors.modelInput, model_name);
-      await wait(page);
-      await page.waitForSelector(selectors.firstPresetResult);
-      await click(page, selectors.firstPresetResult);
-      try {
-        await click(page, selectors.firstPresetResult); 
-      } catch(error) {}
-    }
-  }, 2, false).catch(error => {
-    console.log("An error occurred, probable model name already exists");
-  });
   await wait(page);
 
   console.log("Enabling chatting...");

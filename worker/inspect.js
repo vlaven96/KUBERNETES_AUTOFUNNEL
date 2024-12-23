@@ -1,11 +1,26 @@
 const { chromium } = require('playwright-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
+const path = require('path');
 const axios = require('axios');
 const { authenticator } = require('otplib');
 
 const DPA_BOT_PLATFORM_API_KEY = 'HC18ytNrQXnsI1X33UfgxMmZq2SWwvy5MTBtsZrAUck'
 const DPA_BOT_PLATFORM_URL = 'http://138.201.226.205:8000'
+
+function deleteFolderRecursive(folderPath) {
+  if (fs.existsSync(folderPath)) {
+    fs.readdirSync(folderPath).forEach((file, index) => {
+      const curPath = path.join(folderPath, file);
+      if (fs.lstatSync(curPath).isDirectory()) {
+        deleteFolderRecursive(curPath);
+      } else {
+        fs.unlinkSync(curPath);
+      }
+    });
+    fs.rmdirSync(folderPath);
+  }
+}
 
 const selectors = {
     accessTokenInput: "input.MuiInput-input",
@@ -116,7 +131,7 @@ async function loginToSnapchat(page, username, password, twofa) {
 async function startChromeWithSnapAccount() {
   // Load debug configuration
   const username = process.argv[2]; 
-  
+  deleteFolderRecursive('./data');
   if (!username) {
     console.log('Error: Please provide a username as a command-line argument.');
     process.exit(1); // Exit with an error code
