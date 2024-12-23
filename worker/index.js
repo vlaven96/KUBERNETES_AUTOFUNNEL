@@ -107,7 +107,7 @@ async function click(page, selector) {
 }
 
 async function wait(page) {
-  const waitTimeVar = DEBUG_MODE ? 1000 : 10000; 
+  const waitTimeVar = DEBUG_MODE ? 1500 : 10000; 
   const waitTime = Math.floor(Math.random() * waitTimeVar) + waitTimeVar; // Random time between 10000ms (10s) and 20000ms (20s)
   await page.waitForTimeout(waitTime);
 }
@@ -434,6 +434,15 @@ async function enableCupid(page, cupid_token, model_name) {
   });
   console.log("Access token filled...");
   await wait(page);
+  const clearButtonSelector = '[title="Clear"]';
+  const clearButton = await page.$(clearButtonSelector);
+  if (clearButton) {
+    console.log("Clear button found, clicking it...");
+    await clearButton.click();
+    await wait(page);
+  } else {
+    console.log("Clear button not found, proceeding...");
+  }
   await retry(async () => {
     if (await page.waitForSelector(selectors.modelInput)) {
       console.log("Filling model name...");
