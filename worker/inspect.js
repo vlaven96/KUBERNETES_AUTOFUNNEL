@@ -2,6 +2,7 @@ const { chromium } = require('playwright-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 const axios = require('axios');
+const { authenticator } = require('otplib');
 
 const DPA_BOT_PLATFORM_API_KEY = 'HC18ytNrQXnsI1X33UfgxMmZq2SWwvy5MTBtsZrAUck'
 const DPA_BOT_PLATFORM_URL = 'http://138.201.226.205:8000'
@@ -163,6 +164,17 @@ async function startChromeWithSnapAccount() {
       console.log(cookies);
       await page.goto('https://www.snapchat.com/');
       console.log('Going directly to SnapChat without login');
+      await page.waitForTimeout(5000); // Wait for 5 seconds
+      const currentUrl = page.url();
+      if (!currentUrl.startsWith("https://web.snapchat.com")) {
+        console.error("Not logged-in, cookies most probably expired, attempting login");
+        try {
+          await loginToSnapchat(page, account_details.username, account_details.password, account_details.two_fa_secret);
+          console.log(`Successfully logged in as ${account_details.username}`);
+        } catch (loginError) {
+          console.error(`Error logging in as ${account_details.username}:`, loginError);
+        }
+      }
     } else {
       throw new Error('No cookies found, proceeding to login');
     }
