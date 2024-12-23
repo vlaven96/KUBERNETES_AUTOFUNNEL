@@ -6,30 +6,6 @@ const axios = require('axios');
 const DPA_BOT_PLATFORM_API_KEY = 'HC18ytNrQXnsI1X33UfgxMmZq2SWwvy5MTBtsZrAUck'
 const DPA_BOT_PLATFORM_URL = 'http://138.201.226.205:8000'
 
-async function readCookiesForUsername(username) {
-    const url = `${DPA_BOT_PLATFORM_URL}/cookies/snapchat-account/${username}`;
-    const headers = {
-      'x-api-key': `${DPA_BOT_PLATFORM_API_KEY}`,
-      'Content-Type': 'application/json',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-    };
-  
-    try {
-      // Fetch the account record from Airtable
-      const response = await axios.get(`${url}`, { headers });
-      const data = response.data.data;
-  
-      if (response.status !== 200) {
-        throw new Error(`Failed to fetch Cookies for user: ${username}`);
-      }
-  
-      const cookies = JSON.parse(data).cookies;
-      return cookies;
-    } catch (error) {
-      console.error(`An error occurred while reading cookies for ${username}: ${error.message}`);
-    }
-  }
-
 const selectors = {
     accessTokenInput: "input.MuiInput-input",
     submitButton: "[role='tabpanel'] button.MuiButton-root[type='button']",
@@ -138,10 +114,27 @@ async function loginToSnapchat(page, username, password, twofa) {
 
 async function startChromeWithSnapAccount() {
   // Load debug configuration
-  const debugConfig = require('./debug-config.js');
-  const username = process.env.ACCOUNT_USERNAME;
-  const password = process.env.PASSWORD;
-  const twofa = process.env.TWOFA_SECRET;
+  const username = process.argv[2]; 
+  
+  if (!username) {
+    console.log('Error: Please provide a username as a command-line argument.');
+    process.exit(1); // Exit with an error code
+  }
+
+  const url = `${DPA_BOT_PLATFORM_URL}/accounts/by-username/${username}`;
+  const headers = {
+    'x-api-key': `${DPA_BOT_PLATFORM_API_KEY}`,
+    'Content-Type': 'application/json',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+  };
+
+  const response = await axios.get(`${url}`, { headers });
+  if (response.status !== 200) {
+    console.error(`Unexpected status code: ${response.status}`);
+    return;
+  }
+
+  const account_details = response.data;
 
   const isHotBot = false;
   const extensionPath = isHotBot == 'true' ? './hotbot' : './cupidbot';
@@ -161,12 +154,13 @@ async function startChromeWithSnapAccount() {
   });
 //   const context = await browser.newContext();
   const page = await context.newPage();
-
+  console.log(account_details.two_fa_secret);
   try {
-    let cookies = await readCookiesForUsername(username);
+    let cookies = JSON.parse(account_details.cookies.data).cookies;
     if (cookies && cookies.length > 0) {
       await context.addCookies(cookies);
-      console.log(`Cookies set for ${username}`);
+      console.log(`Cookies set for ${account_details.username}`);
+      console.log(cookies);
       await page.goto('https://www.snapchat.com/');
       console.log('Going directly to SnapChat without login');
     } else {
@@ -175,10 +169,10 @@ async function startChromeWithSnapAccount() {
   } catch (error) {
     console.error(`Error setting cookies for ${username}:`, error);
     try {
-      await loginToSnapchat(page, username, password, twofa);
-      console.log(`Successfully logged in as ${username}`);
+      await loginToSnapchat(page, account_details.username, account_details.password, account_details.two_fa_secret);
+      console.log(`Successfully logged in as ${account_details.username}`);
     } catch (loginError) {
-      console.error(`Error logging in as ${username}:`, loginError);
+      console.error(`Error logging in as ${account_details.username}:`, loginError);
     }
   }
 }
