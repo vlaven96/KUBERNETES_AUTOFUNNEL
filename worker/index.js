@@ -194,7 +194,7 @@ async function enableMatchLocation(page) {
 async function launchBrowser() {
   const username = process.env.ACCOUNT_USERNAME;
   const password = process.env.PASSWORD;
-  const cupid_token = process.env.CUPID_TOKEN;
+  const cupid_token = process.env.CHATBOT_TOKEN;
   const model_name = process.env.MODEL_NAME;
   const proxyHost = process.env.PROXY_HOST.replace(/\t|\n/g, '');
   const proxyPort = process.env.PROXY_PORT.replace(/\t|\n/g, '');
@@ -682,7 +682,7 @@ async function start() {
 
   const username = process.env.ACCOUNT_USERNAME;
   const password = process.env.PASSWORD;
-  const cupid_token = process.env.CUPID_TOKEN;
+  const cupid_token = process.env.CHATBOT_TOKEN;
   const model_name = process.env.MODEL_NAME;
 
   //check if account is alive
