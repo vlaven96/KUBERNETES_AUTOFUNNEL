@@ -694,7 +694,7 @@ async function start() {
 
   if (!usernameAlive) {
     console.log(`${username} is locked`);
-    await updateAccountStatus(username, "LOCKED");
+    await updateAccountStatus(username, "CHATBOT_LOCKED");
     await browser.close();
     throw new Error(`${username} is locked and cannot proceed further.`);
   }
@@ -804,7 +804,7 @@ async function start() {
       }
     } else {
       console.log("Username locked - stopping");
-      await updateAccountStatus(process.env.ACCOUNT_USERNAME, "LOCKED");
+      await updateAccountStatus(process.env.ACCOUNT_USERNAME, "CHATBOT_LOCKED");
       await new Promise(resolve => setTimeout(resolve, 60000)); // Wait for 60 seconds
       break;
     }
