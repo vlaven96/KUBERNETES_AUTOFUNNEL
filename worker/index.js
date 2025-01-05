@@ -194,7 +194,7 @@ async function enableMatchLocation(page) {
 async function launchBrowser() {
   const username = process.env.ACCOUNT_USERNAME;
   const password = process.env.PASSWORD;
-  const cupid_token = process.env.CUPID_TOKEN;
+  const cupid_token = process.env.CHATBOT_TOKEN;
   const model_name = process.env.MODEL_NAME;
   const proxyHost = process.env.PROXY_HOST.replace(/\t|\n/g, '');
   const proxyPort = process.env.PROXY_PORT.replace(/\t|\n/g, '');
@@ -447,9 +447,6 @@ async function enableCupid(page, cupid_token, model_name) {
   });
   console.log("Access token filled...");
   await wait(page);
-
-  // TEMPORARY FIX BECAUSE WEIRD INTERACTION
-  
   // const clearButtonSelector = '[title="Clear"]';
   // const clearButton = await page.$(clearButtonSelector);
   // if (clearButton) {
@@ -460,15 +457,17 @@ async function enableCupid(page, cupid_token, model_name) {
   //   console.log("Clear button not found, proceeding...");
   // }
   try {
-    await page.waitForSelector(selectors.modelInput);
+    await page.waitForSelector(selectors.modelInput)
     console.log("Filling model name...");
     await clearInput(selectors.modelInput, page);
     await page.fill(selectors.modelInput, model_name);
-    await page.waitForSelector(selectors.firstPresetResult);
+    await page.waitForSelector(selectors.firstPresetResult)
     await click(page, selectors.firstPresetResult, { force: true });
-    await click(page, selectors.firstPresetResult, { force: true });
+    try {
+      await click(page, selectors.firstPresetResult, { force: true }); 
+    } catch(error) {}
   } catch (error) {
-    console.log("Model already exists, proceeding with the existing model...");
+    console.log("Seems model already filled in");
   }
 
   await wait(page);
@@ -687,7 +686,7 @@ async function start() {
 
   const username = process.env.ACCOUNT_USERNAME;
   const password = process.env.PASSWORD;
-  const cupid_token = process.env.CUPID_TOKEN;
+  const cupid_token = process.env.CHATBOT_TOKEN;
   const model_name = process.env.MODEL_NAME;
 
   //check if account is alive
@@ -695,7 +694,7 @@ async function start() {
 
   if (!usernameAlive) {
     console.log(`${username} is locked`);
-    await updateAccountStatus(username, "LOCKED");
+    await updateAccountStatus(username, "CHATBOT_LOCKED");
     await browser.close();
     throw new Error(`${username} is locked and cannot proceed further.`);
   }
@@ -805,7 +804,7 @@ async function start() {
       }
     } else {
       console.log("Username locked - stopping");
-      await updateAccountStatus(process.env.ACCOUNT_USERNAME, "LOCKED");
+      await updateAccountStatus(process.env.ACCOUNT_USERNAME, "CHATBOT_LOCKED");
       await new Promise(resolve => setTimeout(resolve, 60000)); // Wait for 60 seconds
       break;
     }

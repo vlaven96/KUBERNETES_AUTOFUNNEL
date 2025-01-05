@@ -42,6 +42,17 @@ type Proxy struct {
 	ProxyPassword string `json:"proxy_password"`
 }
 
+type Model struct {
+	ID            int    `json:"id"`
+	Name          string `json:"name"`
+}
+
+type ChatBot struct {
+	ID            int    `json:"id"`
+	Type          string `json:"type"`
+	Token         string `json:"token"`
+}
+
 type SnapchatAccount struct {
 	ID           int    `json:"id"`
 	Username     string `json:"username"`
@@ -51,6 +62,8 @@ type SnapchatAccount struct {
 	Status       string `json:"status"`
 	Proxy        *Proxy `json:"proxy"`
 	Tag          string `json:"tag"`
+	ChatBot      *ChatBot `json:"chat_bot"`
+	Model        *Model `json:"model"`
 }
 
 
@@ -75,7 +88,7 @@ func fetchSnapchatAccounts() ([]SnapchatAccount, error) {
 	}
 
 	// Create the request
-	req, err := http.NewRequest("GET", "http://138.201.226.205:8000/accounts?status=GOOD_STANDING", nil)
+	req, err := http.NewRequest("GET", "http://138.201.226.205:8000/accounts?statuses=GOOD_STANDING", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
@@ -165,22 +178,17 @@ func createDeploymentForAccount(clientset *kubernetes.Clientset, account Snapcha
 							Env: []corev1.EnvVar{
 								{Name: "ACCOUNT_USERNAME", Value: account.Username},
 								{Name: "PASSWORD", Value: account.Password},
-								{Name: "CUPID_TOKEN", Value: func() string {
-									if account.Status == "HOTBOT" {
-										return os.Getenv("HOTBOT_TOKEN")
-									}
-									return os.Getenv("CUPID_TOKEN")
-								}()},
-								{Name: "MODEL_NAME", Value: "Leah"},
+								{Name: "CHATBOT_TOKEN", Value: account.ChatBot.Token},
+								{Name: "MODEL_NAME", Value: account.Model.Name},
 								{Name: "PROXY_HOST", Value: account.Proxy.Host},
 								{Name: "PROXY_USERNAME", Value: account.Proxy.ProxyUsername},
 								{Name: "PROXY_PASSWORD", Value: account.Proxy.ProxyPassword},
 								{Name: "TWOFA_SECRET", Value: account.TwoFASecret},
 								{Name: "isHotBot", Value: func() string {
-									if account.Tag == "HOTBOT" {
-										return "true"
+									if account.ChatBot.Type == "CupidBot" {
+										return "false"
 									}
-									return "false"
+									return "true"
 								}()},
 								{Name: "PROXY_PORT", Value: account.Proxy.Port},
 							},
