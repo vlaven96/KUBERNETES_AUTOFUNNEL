@@ -3,10 +3,11 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+const https = require('https');
 const { authenticator } = require('otplib');
 
 const DPA_BOT_PLATFORM_API_KEY = 'HC18ytNrQXnsI1X33UfgxMmZq2SWwvy5MTBtsZrAUck'
-const DPA_BOT_PLATFORM_URL = 'http://138.201.226.205:8000'
+const DPA_BOT_PLATFORM_URL = 'https://138.201.226.205:8000'
 
 function deleteFolderRecursive(folderPath) {
   if (fs.existsSync(folderPath)) {
@@ -144,7 +145,7 @@ async function startChromeWithSnapAccount() {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
   };
 
-  const response = await axios.get(`${url}`, { headers });
+  const response = await axios.get(`${url}`, { headers, httpsAgent: new https.Agent({ rejectUnauthorized: false }) });
   if (response.status !== 200) {
     console.error(`Unexpected status code: ${response.status}`);
     return;
@@ -152,8 +153,10 @@ async function startChromeWithSnapAccount() {
 
   const account_details = response.data;
 
-  const isHotBot = false;
-  const extensionPath = isHotBot == 'true' ? './hotbot' : './cupidbot';
+  const isHotBot = true;
+  // const extensionPath = isHotBot == 'true' ? './hotbot' : './cupidbot';
+  const extensionPath = './hotbot';
+  console.log(extensionPath);
   const args = [
     '--no-sandbox',
     '--disable-setuid-sandbox',

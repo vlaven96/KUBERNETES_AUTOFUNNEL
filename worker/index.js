@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const ProxyChain = require('proxy-chain');
 const axios = require('axios');
+const https = require('https');
 const { authenticator } = require('otplib');
 
 const args = process.argv.slice(2); // Get command-line arguments
@@ -256,6 +257,8 @@ async function loginToSnapchat(page, username, password) {
     console.log('Username input found');
     await page.fill(selectors.usernameInput, username);
     await page.keyboard.press("Enter");
+    await wait(page);
+    await wait(page);
 
     if (!(await page.waitForSelector(selectors.passwordInput).catch(() => void 0))) {
       await updateAccountStatus(username, "CAPTCHA")
@@ -282,14 +285,6 @@ async function loginToSnapchat(page, username, password) {
   } catch (error) {
     console.error(`An error occurred while handling 2FA: ${error.message}`);
     throw error;
-  }
-
-  try {
-    if (await page.waitForSelector(selectors.notificationsModal)) {
-      await page.click(selectors.notificationsModelCloseButton);
-    }
-  } catch (error) {
-    console.log("No notifications modal found.");
   }
   console.log('Logged into Snapchat account');
 }
@@ -380,21 +375,40 @@ async function enableHotBot(page, hotbot_token, model_name) {
 
 async function enableCupid(page, cupid_token, model_name) {
   const isHotBot = process.env.isHotBot;
-
-  if (isHotBot == 'true') {
-     await enableHotBot(page, cupid_token, model_name);
-     return;
-  }
   await wait(page);
-
+  
   console.log("Clicking on the 'Next' button...");
   const nextButton = await page.$$('span:has-text("Next")');
   if (nextButton.length > 0) {
     await nextButton[0].click();
     console.log("Clicked on the 'Next' button");
     await wait(page);
+    console.log("Clicking on the 'Skip' button...");
+    const skipButton = await page.$$('span:has-text("Skip")');
+    if (skipButton.length > 0) {
+      await skipButton[0].click();
+      console.log("Clicked on the 'Skip' button");
+    } else {
+      console.log("Could not find the 'Skip' button");
+    }
+    await wait(page);
   } else {
     console.log("Could not find the 'Next' button");
+  }
+
+  try {
+    if (await page.waitForSelector(selectors.notificationsModal)) {
+      await page.click(selectors.notificationsModelCloseButton);
+    }
+  } catch (error) {
+    console.log("No notifications modal found.");
+  }
+
+  await wait(page);
+
+  if (isHotBot == 'true') {
+     await enableHotBot(page, cupid_token, model_name);
+     return;
   }
 
   
@@ -597,7 +611,7 @@ async function checkCupidStatusAndReload(page, browser, username) {
 }
 
 const DPA_BOT_PLATFORM_API_KEY = 'HC18ytNrQXnsI1X33UfgxMmZq2SWwvy5MTBtsZrAUck'
-const DPA_BOT_PLATFORM_URL = 'http://138.201.226.205:8000'
+const DPA_BOT_PLATFORM_URL = 'https://138.201.226.205:8000'
 
 async function updateAccountStatus(username, status) {
   const url = `${DPA_BOT_PLATFORM_URL}/accounts/by-username/${username}`;
@@ -612,8 +626,7 @@ async function updateAccountStatus(username, status) {
     // Update the account status
     const updateResponse = await axios.patch(`${url}`, {
         status: status
-      
-    }, { headers });
+    }, { headers, httpsAgent: new https.Agent({ rejectUnauthorized: false }) });
 
     if (updateResponse.status !== 200) {
       throw new Error(`Failed to update account status: ${updateResponse.statusText}`);
@@ -640,7 +653,7 @@ async function uploadStateFile(username) {
     // Upload the state.json file as a long text field
     const uploadResponse = await axios.post(`${url}`, {
       cookies: stateFile
-    }, { headers });
+    }, { headers, httpsAgent: new https.Agent({ rejectUnauthorized: false }) });
 
     if (uploadResponse.status !== 200) {
       throw new Error(`Failed to upload state.json file: ${uploadResponse.statusText}`);
@@ -662,7 +675,7 @@ async function readCookiesForUsername(username) {
 
   try {
     // Fetch the account record from Airtable
-    const response = await axios.get(`${url}`, { headers });
+    const response = await axios.get(`${url}`, { headers, httpsAgent: new https.Agent({ rejectUnauthorized: false }) });
     const data = response.data.data;
 
     if (response.status !== 200) {

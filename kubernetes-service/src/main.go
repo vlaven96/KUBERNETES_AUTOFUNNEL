@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"time"
+
 	"github.com/mehanizm/airtable"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -37,35 +39,34 @@ type AirtableRecord struct {
 type Proxy struct {
 	ID            int    `json:"id"`
 	Host          string `json:"host"`
-	Port          string    `json:"port"`
+	Port          string `json:"port"`
 	ProxyUsername string `json:"proxy_username"`
 	ProxyPassword string `json:"proxy_password"`
 }
 
 type Model struct {
-	ID            int    `json:"id"`
-	Name          string `json:"name"`
+	ID   int    `json:"id"`
+	Name string `json:"name"`
 }
 
 type ChatBot struct {
-	ID            int    `json:"id"`
-	Type          string `json:"type"`
-	Token         string `json:"token"`
+	ID    int    `json:"id"`
+	Type  string `json:"type"`
+	Token string `json:"token"`
 }
 
 type SnapchatAccount struct {
-	ID           int    `json:"id"`
-	Username     string `json:"username"`
-	Password     string `json:"password"`
-	SnapchatLink string `json:"snapchat_link"`
-	TwoFASecret  string `json:"two_fa_secret"`
-	Status       string `json:"status"`
-	Proxy        *Proxy `json:"proxy"`
-	Tag          string `json:"tag"`
+	ID           int      `json:"id"`
+	Username     string   `json:"username"`
+	Password     string   `json:"password"`
+	SnapchatLink string   `json:"snapchat_link"`
+	TwoFASecret  string   `json:"two_fa_secret"`
+	Status       string   `json:"status"`
+	Proxy        *Proxy   `json:"proxy"`
+	Tag          string   `json:"tag"`
 	ChatBot      *ChatBot `json:"chat_bot"`
-	Model        *Model `json:"model"`
+	Model        *Model   `json:"model"`
 }
-
 
 func getFirstString(field interface{}) (string, bool) {
 	if field == nil {
@@ -88,7 +89,11 @@ func fetchSnapchatAccounts() ([]SnapchatAccount, error) {
 	}
 
 	// Create the request
-	req, err := http.NewRequest("GET", "http://138.201.226.205:8000/accounts?statuses=GOOD_STANDING", nil)
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	req, err := http.NewRequest("GET", "https://138.201.226.205:8000/accounts?statuses=GOOD_STANDING", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
@@ -97,7 +102,6 @@ func fetchSnapchatAccounts() ([]SnapchatAccount, error) {
 	req.Header.Set("x-api-key", apiKey)
 
 	// Perform the request
-	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to perform request: %v", err)
@@ -118,7 +122,7 @@ func fetchSnapchatAccounts() ([]SnapchatAccount, error) {
 	for _, account := range accounts {
 		fmt.Printf("%+v\n", account)
 	}
-	
+
 	log.Printf("Fetched %d Snapchat accounts", len(accounts))
 	return accounts, nil
 }
@@ -151,7 +155,7 @@ func createDeploymentForAccount(clientset *kubernetes.Clientset, account Snapcha
 			Name:      fmt.Sprintf("sc-%s", formatUsername(account.Username)),
 			Namespace: os.Getenv("POD_NAMESPACE"),
 			Labels: map[string]string{
-				"app":                "sc",
+				"app":                 "sc",
 				"snapchat-account-id": fmt.Sprintf("%d", account.ID),
 			},
 		},
@@ -159,14 +163,14 @@ func createDeploymentForAccount(clientset *kubernetes.Clientset, account Snapcha
 			Replicas: int32Ptr(1),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"app":                "sc",
+					"app":                 "sc",
 					"snapchat-account-id": fmt.Sprintf("%d", account.ID),
 				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app":                "sc",
+						"app":                 "sc",
 						"snapchat-account-id": fmt.Sprintf("%d", account.ID),
 					},
 				},
@@ -181,8 +185,18 @@ func createDeploymentForAccount(clientset *kubernetes.Clientset, account Snapcha
 								{Name: "CHATBOT_TOKEN", Value: account.ChatBot.Token},
 								{Name: "MODEL_NAME", Value: account.Model.Name},
 								{Name: "PROXY_HOST", Value: account.Proxy.Host},
-								{Name: "PROXY_USERNAME", Value: account.Proxy.ProxyUsername},
-								{Name: "PROXY_PASSWORD", Value: account.Proxy.ProxyPassword},
+								{Name: "PROXY_USERNAME", Value: func() string {
+									if account.Proxy.ProxyUsername == "" {
+										return "14aae19f6e6a8"
+									}
+									return account.Proxy.ProxyUsername
+								}()},
+								{Name: "PROXY_PASSWORD", Value: func() string {
+									if account.Proxy.ProxyPassword == "" {
+										return "90646c5afb"
+									}
+									return account.Proxy.ProxyPassword
+								}()},
 								{Name: "TWOFA_SECRET", Value: account.TwoFASecret},
 								{Name: "isHotBot", Value: func() string {
 									if account.ChatBot.Type == "CupidBot" {

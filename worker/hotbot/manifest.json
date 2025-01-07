@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Hotbot",
-  "version": "1.0.1",
+  "version": "1.0.9",
   "description": "Extension for Snapchat.com",
   "action": {},
   "options_ui": {
@@ -21,6 +21,8 @@
     "*://*/*"
   ],
   "permissions": [
+    "background",
+    "scripting",
     "debugger",
     "storage",
     "unlimitedStorage",
