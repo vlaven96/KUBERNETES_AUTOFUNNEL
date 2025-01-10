@@ -352,11 +352,15 @@ async function loginToSnapchat(page, username, password) {
 
 async function enableHotBot(page, hotbot_token, model_name) {
   console.log("Enabling HotBot...");
-  await page.waitForSelector('input[id="license"]');
-  console.log("License input found");
-  await page.fill('#license', hotbot_token);
-  await page.keyboard.press("Enter");
-  console.log("Hotbot token entered and Enter key pressed");
+  try {
+    await page.waitForSelector('input[id="license"]', { timeout: 5000 });
+    console.log("License input found");
+    await page.fill('#license', hotbot_token);
+    await page.keyboard.press("Enter");
+    console.log("Hotbot token entered and Enter key pressed");
+  } catch (error) {
+    console.log("No license input field found, continuing...");
+  }
 
   await wait(page);
   await wait(page);
