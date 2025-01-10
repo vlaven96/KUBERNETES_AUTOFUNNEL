@@ -10,11 +10,32 @@ const { authenticator } = require('otplib');
 const args = process.argv.slice(2); // Get command-line arguments
 const DEBUG_MODE = args.includes('--debug'); // Check if --debug is passed
 
+let switchProxy = async () => {};
+
 if (DEBUG_MODE) {
   console.log("Debug mode enabled. Loading debug configuration...");
   require('./debug-config.js'); // Load and execute the debug configuration file
 } else {
   console.log("Debug mode not enabled. Using environment variables.");
+}
+
+function generateId() {
+  const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 8; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return result.toLowerCase();
+}
+
+function generateProxy() {
+  const countryCode = "us";
+  const portHttp = 44443;
+  const host = "ultra.marsproxies.com";
+  const username = "mr37042byUM";
+  const randomId = generateId();
+  const password = `dpasnap2024_country-${countryCode.toLowerCase()}_session-${randomId}_lifetime-168h`;
+  return `http://${username}:${password}@${host}:${portHttp}`;
 }
 
 const selectors = {
@@ -210,8 +231,32 @@ async function launchBrowser() {
   console.log(`isHotBot: ${isHotBot}`);
 
   const proxyUrl = `http://${proxyUsername}:${proxyPassword}@${proxyHost}:${proxyPort}`;
-  console.log(`Proxy URL: ${proxyUrl}`);
-  const newProxyUrl = await ProxyChain.anonymizeProxy(proxyUrl);
+  const residencialProxyUrl = generateProxy();
+  console.log(`Proxy URL: ${residencialProxyUrl}`);
+  const newProxyUrl = await ProxyChain.anonymizeProxy({
+    url: residencialProxyUrl,
+    port: 51123
+  });
+
+  // Close any existing anonymized proxy
+  switchProxy = async () => {
+    try {
+      await ProxyChain.closeAnonymizedProxy(newProxyUrl, true);
+      console.log('Successfully closed old proxy');
+    } catch (error) {
+      console.error('Error closing old proxy:', error);
+    }
+    try {
+      await ProxyChain.anonymizeProxy({
+        url: proxyUrl,
+        port: 51123
+      });
+    } catch (error) {
+      console.error('Error creating new proxy:', error);
+      throw error;
+    }
+  };
+  
   console.log(`Anonymized Proxy URL: ${newProxyUrl}`);
 
   const extensionPath = isHotBot == 'true' ? './hotbot' : './cupidbot';
@@ -376,7 +421,13 @@ async function enableHotBot(page, hotbot_token, model_name) {
 async function enableCupid(page, cupid_token, model_name) {
   const isHotBot = process.env.isHotBot;
   await wait(page);
-  
+
+  // Switch to a new proxy and reload the page to apply it
+  await switchProxy(); // Call switchProxy() to close old proxy and create new one
+  await page.reload(); // Reload page to use the new proxy
+
+  console.log("Switched to a new proxy and reloaded the page");
+
   console.log("Clicking on the 'Next' button...");
   const nextButton = await page.$$('span:has-text("Next")');
   if (nextButton.length > 0) {
