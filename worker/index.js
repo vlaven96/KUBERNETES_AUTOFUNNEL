@@ -11,6 +11,7 @@ const args = process.argv.slice(2); // Get command-line arguments
 const DEBUG_MODE = args.includes('--debug'); // Check if --debug is passed
 
 let switchProxy = async () => {};
+let closeProxy = async () => {};
 
 if (DEBUG_MODE) {
   console.log("Debug mode enabled. Loading debug configuration...");
@@ -256,6 +257,21 @@ async function launchBrowser() {
       throw error;
     }
   };
+
+  closeProxy = async () => {
+    try {
+      await ProxyChain.closeAnonymizedProxy(newProxyUrl, true);
+      console.log('Successfully closed old proxy');
+    } catch (error) {
+      console.error('Error closing old proxy:', error);
+    }
+    try {
+      await ProxyChain.closeAnonymizedProxy(proxyUrl, true);
+      console.log('Successfully closed new proxy');
+    } catch (error) {
+      console.error('Error closing new proxy:', error);
+    }
+  };
   
   console.log(`Anonymized Proxy URL: ${newProxyUrl}`);
 
@@ -382,6 +398,21 @@ async function enableHotBot(page, hotbot_token, model_name) {
   // } else {
   //   console.log(`Could not find <p> element with model name: ${model_name}`);
   // }
+
+  console.log("Checking chatting activation switch state...");
+  const chattingSwitch = await page.$$('button[role="switch"]');
+  if (chattingSwitch.length >= 2) {
+    const switchState = await chattingSwitch[1].getAttribute('data-state');
+    if (switchState !== 'checked') {
+      await chattingSwitch[1].click();
+      console.log("Chatting activation switch was unchecked, now enabled");
+    } else {
+      console.log("Chatting activation switch already enabled");
+    }
+  } else {
+    console.log("Could not find chatting activation switch");
+  }
+  await wait(page);
 
   console.log("Clicking on the 'Main' button...");
   const mainButton = await page.$$('span:has-text("Main")');
@@ -777,6 +808,7 @@ async function start() {
       console.error(`Error name: ${error.name}`);
       console.error(`Error details: ${JSON.stringify(error)}`);
       await browser.close();
+      await closeProxy();
       throw error;
     }
   } else {
@@ -789,6 +821,7 @@ async function start() {
     } catch (error) {
       console.error("An error occurred while logging into Snapchat:", error);
       await browser.close();
+      await closeProxy();
       throw error;
     }
   }  
@@ -816,6 +849,7 @@ async function start() {
     } catch (error) {
       console.error("An error occurred while logging into Snapchat:", error);
       await browser.close();
+      await closeProxy();
       throw error;
     }
 
@@ -826,6 +860,7 @@ async function start() {
     } catch (error) {
       console.log("Something is fucked - closing");
       await browser.close();
+      await closeProxy();
       throw error;
     }
   }
@@ -848,6 +883,7 @@ async function start() {
       await page.waitForTimeout(37 * 60 * 1000); // Wait for 37 minutes
     } catch (error) {
       await browser.close();
+      await closeProxy();
       throw error;
     }
   }
