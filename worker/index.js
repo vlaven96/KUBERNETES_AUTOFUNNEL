@@ -322,7 +322,9 @@ async function loginToSnapchat(page, username, password) {
     await wait(page);
 
     if (!(await page.waitForSelector(selectors.passwordInput).catch(() => void 0))) {
-      await updateAccountStatus(username, "CAPTCHA")
+      // No longer updating account status
+      
+      // await updateAccountStatus(username, "CAPTCHA")
       throw new Error("An error occurred while waiting for the password input field to appear or the account is locked!");
     }
     await page.fill(selectors.passwordInput, password);
@@ -908,7 +910,10 @@ async function start() {
       }
     } else {
       console.log("Username locked - stopping");
-      await updateAccountStatus(process.env.ACCOUNT_USERNAME, "CHATBOT_LOCKED");
+
+      // No longer updating account status
+
+      // await updateAccountStatus(process.env.ACCOUNT_USERNAME, "CHATBOT_LOCKED");
       await new Promise(resolve => setTimeout(resolve, 60000)); // Wait for 60 seconds
       break;
     }

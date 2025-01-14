@@ -162,14 +162,14 @@ async function startChromeWithSnapAccount() {
     '--disable-setuid-sandbox',
     `--disable-extensions-except=${extensionPath}`,
     `--load-extension=${extensionPath}`,
-    '--window-size=1920,1080', // Set window size to standard screen resolution
+    // '--window-size=1920,1080', // Set window size to standard screen resolution
     '--use-fake-ui-for-media-stream', // Enable webcam permissions for all websites
     '--use-fake-device-for-media-stream' // Use fake device for media stream
   ];
   const context = await chromium.launchPersistentContext('./data', {
     headless: false,
     args: args,
-    viewport: { width: 1920, height: 1080 }, // Set viewport to standard screen resolution
+    // viewport: { width: 1920, height: 1080 }, // Set viewport to standard screen resolution
   });
 //   const context = await browser.newContext();
   const page = await context.newPage();
