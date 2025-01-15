@@ -155,7 +155,7 @@ async function startChromeWithSnapAccount() {
 
   const isHotBot = true;
   // const extensionPath = isHotBot == 'true' ? './hotbot' : './cupidbot';
-  const extensionPath = './hotbot';
+  const extensionPath = './cupidbot';
   console.log(extensionPath);
   const args = [
     '--no-sandbox',

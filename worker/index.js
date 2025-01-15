@@ -906,6 +906,7 @@ async function start() {
       } catch (error) {
         console.error("An error occurred:", error);
         console.log("We are going to restart...");
+        await closeProxy();
         await new Promise(resolve => setTimeout(resolve, 60000)); // Wait for 60 seconds
       }
     } else {
