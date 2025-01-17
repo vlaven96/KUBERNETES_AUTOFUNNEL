@@ -12,6 +12,7 @@ const DEBUG_MODE = args.includes('--debug'); // Check if --debug is passed
 
 let switchProxy = async () => {};
 let closeProxy = async () => {};
+let isTempLocked = false;
 
 if (DEBUG_MODE) {
   console.log("Debug mode enabled. Loading debug configuration...");
@@ -130,12 +131,12 @@ async function click(page, selector) {
 }
 
 async function wait(page) {
-  const waitTimeVar = DEBUG_MODE ? 2000 : 10000; 
+  const waitTimeVar = DEBUG_MODE ? 5000 : 10000; 
   const waitTime = Math.floor(Math.random() * waitTimeVar) + waitTimeVar; // Random time between 10000ms (10s) and 20000ms (20s)
   await page.waitForTimeout(waitTime);
 }
 
-async function retry(fn, retries = 3, showlogs = true, delay = 5000) {
+async function retry(fn, retries = 2, showlogs = true, delay = 5000) {
   for (let i = 0; i < retries; i++) {
     try {
       return await fn();
@@ -323,6 +324,9 @@ async function loginToSnapchat(page, username, password) {
 
     if (!(await page.waitForSelector(selectors.passwordInput).catch(() => void 0))) {
       // No longer updating account status
+
+      const currentUrl = page.url();
+      isTempLocked = currentUrl === "https://accounts.snapchat.com/accounts/locked/sso";
       
       // await updateAccountStatus(username, "CAPTCHA")
       throw new Error("An error occurred while waiting for the password input field to appear or the account is locked!");
@@ -465,23 +469,25 @@ async function enableCupid(page, cupid_token, model_name) {
 
   console.log("Switched to a new proxy and reloaded the page");
 
+  await wait(page);
   console.log("Clicking on the 'Next' button...");
-  const nextButton = await page.$$('span:has-text("Next")');
-  if (nextButton.length > 0) {
-    await nextButton[0].click();
+  try {
+    console.log("Looking for 'Next' button...");
+    const nextButton = await page.waitForSelector('span:has-text("Next")', { timeout: 5000 });
+    await nextButton.click();
     console.log("Clicked on the 'Next' button");
+    
     await wait(page);
-    console.log("Clicking on the 'Skip' button...");
-    const skipButton = await page.$$('span:has-text("Skip")');
-    if (skipButton.length > 0) {
-      await skipButton[0].click();
-      console.log("Clicked on the 'Skip' button");
-    } else {
-      console.log("Could not find the 'Skip' button");
-    }
+    
+    console.log("Looking for 'Skip' button...");
+    const skipButton = await page.waitForSelector('span:has-text("Skip")', { timeout: 5000 });
+    await skipButton.click();
+    console.log("Clicked on the 'Skip' button");
+    
     await wait(page);
-  } else {
-    console.log("Could not find the 'Next' button");
+    
+  } catch (error) {
+    console.log("Could not find Next/Skip buttons:");
   }
 
   try {
@@ -802,6 +808,7 @@ async function start() {
 
   let cookies = await readCookiesForUsername(username)
   let page = await browser.newPage();
+  
   if (cookies && cookies.length > 0) {
     browser.addCookies(cookies)
     console.log(`Cookies set for ${username}`);
@@ -907,7 +914,13 @@ async function start() {
         console.error("An error occurred:", error);
         console.log("We are going to restart...");
         await closeProxy();
-        await new Promise(resolve => setTimeout(resolve, 60000)); // Wait for 60 seconds
+        if (isTempLocked) {
+          console.log("Account temporarily locked - waiting 12 hours before retrying...");
+          await new Promise(resolve => setTimeout(resolve, 12 * 60 * 60 * 1000));
+        } else {
+          console.log("Error occurred - waiting 60 seconds before retrying...");
+          await new Promise(resolve => setTimeout(resolve, 60000));
+        }
       }
     } else {
       console.log("Username locked - stopping");
@@ -915,7 +928,7 @@ async function start() {
       // No longer updating account status
 
       // await updateAccountStatus(process.env.ACCOUNT_USERNAME, "CHATBOT_LOCKED");
-      await new Promise(resolve => setTimeout(resolve, 60000)); // Wait for 60 seconds
+      await new Promise(resolve => setTimeout(resolve, 6 * 60 * 60 * 1000)); // Wait for 6 hours
       break;
     }
   }
