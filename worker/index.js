@@ -528,6 +528,12 @@ async function enableCupid(page, cupid_token, model_name) {
 
       console.log("Details of mainSwitchEnabled:", JSON.stringify(mainSwitchEnabledDetails, null, 2));
       console.log("Cupid is already enabled");
+
+      // There might be a problem with the state of cupid so better if we empty the cookies
+      await fs.writeFile('state.json', '{}', 'utf8');
+      await uploadStateFile(username);
+      console.log("State file has been emptied and cookies have been updated.");
+
       return;
     }
   } catch (error) { 
