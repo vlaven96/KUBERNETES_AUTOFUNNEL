@@ -23,6 +23,25 @@ function deleteFolderRecursive(folderPath) {
   }
 }
 
+function generateId() {
+  const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 8; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return result.toLowerCase();
+}
+
+function generateProxy() {
+  const countryCode = "us";
+  const portHttp = 44443;
+  const host = "ultra.marsproxies.com";
+  const username = "mr37042byUM";
+  const randomId = generateId();
+  const password = `dpasnap2024_country-${countryCode.toLowerCase()}_session-${randomId}_lifetime-168h`;
+  return `http://${username}:${password}@${host}:${portHttp}`;
+}
+
 const selectors = {
     accessTokenInput: "input.MuiInput-input",
     submitButton: "[role='tabpanel'] button.MuiButton-root[type='button']",
@@ -157,6 +176,10 @@ async function startChromeWithSnapAccount() {
   // const extensionPath = isHotBot == 'true' ? './hotbot' : './cupidbot';
   const extensionPath = './cupidbot';
   console.log(extensionPath);
+  
+  const residencialProxyUrl = generateProxy();
+  console.log(`Using residential proxy: ${residencialProxyUrl}`);
+
   const args = [
     '--no-sandbox',
     '--disable-setuid-sandbox',
@@ -164,11 +187,17 @@ async function startChromeWithSnapAccount() {
     `--load-extension=${extensionPath}`,
     // '--window-size=1920,1080', // Set window size to standard screen resolution
     '--use-fake-ui-for-media-stream', // Enable webcam permissions for all websites
-    '--use-fake-device-for-media-stream' // Use fake device for media stream
+    '--use-fake-device-for-media-stream', // Use fake device for media stream
   ];
+
   const context = await chromium.launchPersistentContext('./data', {
     headless: false,
     args: args,
+    proxy: {
+      server: residencialProxyUrl.split('@')[1],
+      username: residencialProxyUrl.split('@')[0].split('//')[1].split(':')[0],
+      password: residencialProxyUrl.split('@')[0].split('//')[1].split(':')[1],
+    },
     // viewport: { width: 1920, height: 1080 }, // Set viewport to standard screen resolution
   });
 //   const context = await browser.newContext();

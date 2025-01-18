@@ -93,7 +93,7 @@ func fetchSnapchatAccounts() ([]SnapchatAccount, error) {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
-	req, err := http.NewRequest("GET", "https://138.201.226.205:8000/accounts?statuses=GOOD_STANDING", nil)
+	req, err := http.NewRequest("GET", "https://138.201.226.205:8000/accounts?statuses=GOOD_STANDING&has_quick_adds=true", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
