@@ -801,7 +801,7 @@ async function start() {
 
   if (!usernameAlive) {
     console.log(`${username} is locked`);
-    await updateAccountStatus(username, "CHATBOT_LOCKED");
+    // await updateAccountStatus(username, "CHATBOT_LOCKED");
     await browser.close();
     throw new Error(`${username} is locked and cannot proceed further.`);
   }
