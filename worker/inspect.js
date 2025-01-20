@@ -208,7 +208,6 @@ async function startChromeWithSnapAccount() {
     if (cookies && cookies.length > 0) {
       await context.addCookies(cookies);
       console.log(`Cookies set for ${account_details.username}`);
-      console.log(cookies);
       await page.goto('https://www.snapchat.com/');
       console.log('Going directly to SnapChat without login');
       await page.waitForTimeout(5000); // Wait for 5 seconds
