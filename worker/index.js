@@ -76,7 +76,7 @@ const selectors = {
 
 const {HttpsProxyAgent} = require('https-proxy-agent');
 
-const proxy = "http://mr37042byUM:dpasnap2024_country-us@ultra.marsproxies.com:44443";
+const proxy = generateProxy();
 const agent = new HttpsProxyAgent(proxy);
 
 
