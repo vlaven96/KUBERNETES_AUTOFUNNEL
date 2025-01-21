@@ -22,22 +22,21 @@ if (DEBUG_MODE) {
 }
 
 function generateId() {
-  const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const characters = '0123456789';
   let result = '';
   for (let i = 0; i < 8; i++) {
     result += characters.charAt(Math.floor(Math.random() * characters.length));
   }
-  return result.toLowerCase();
+  return result;
 }
 
 function generateProxy() {
-  const countryCode = "us";
-  const portHttp = 44443;
-  const host = "ultra.marsproxies.com";
-  const username = "mr37042byUM";
-  const randomId = generateId();
-  const password = `dpasnap2024_country-${countryCode.toLowerCase()}_session-${randomId}_lifetime-168h`;
-  return `http://${username}:${password}@${host}:${portHttp}`;
+  const host = "datacenter.proxyempire.io";
+  const port = "9000";
+  const sessionId = generateId();
+  const username = `3954360552;any;session_${sessionId}`;
+  const password = "b4adccb73d";
+  return `http://${username}:${password}@${host}:${port}`;
 }
 
 const selectors = {
