@@ -511,33 +511,26 @@ async function enableCupid(page, cupid_token, model_name) {
   await wait(page);
 
   try {
-    const mainSwitchEnabled = await page.waitForSelector(selectors.mainSwitch + '[aria-checked="true"]');
+    const mainSwitchEnabled = await page.isChecked(selectors.mainSwitch);
     if (mainSwitchEnabled) {
-      const mainSwitchEnabledDetails = await page.evaluate((selector) => {
-        const element = document.querySelector(selector);
-        if (element) {
-          return {
-            innerHTML: element.innerHTML,
-            textContent: element.textContent,
-            attributes: Array.from(element.attributes).map(attr => ({ name: attr.name, value: attr.value })),
-          };
-        }
-        return null;
-      }, selectors.mainSwitch + '[aria-checked="true"]');
 
-      console.log("Details of mainSwitchEnabled:", JSON.stringify(mainSwitchEnabledDetails, null, 2));
       console.log("Cupid is already enabled");
 
       // There might be a problem with the state of cupid so better if we empty the cookies
-      await fs.writeFile('state.json', '{}', 'utf8');
-      await uploadStateFile(username);
-      console.log("State file has been emptied and cookies have been updated.");
+      try {
+        await fs.promises.writeFile('state.json', '{}', 'utf8');
+        await uploadStateFile(username);
+        console.log("State file has been emptied and cookies have been updated.");
+      } catch (error) {
+        console.error("Error updating state file:", error);
+      }
 
       return;
     }
   } catch (error) { 
 
     console.log("Cupid probable not enabled! Enabling it!");
+    console.error("Error:", error);
   }
 
   if (!(await page.waitForSelector(selectors.cupidExtended).catch(() => void 0))) {
@@ -856,6 +849,18 @@ async function start() {
     console.error("An error occurred while enabling Cupid:", error);
     console.log("Either cookies expired or cupid bugged out and didn't automatically enable the extension")
     console.log("Trying a relog!");
+
+    // Clear cookies and state
+    await browser.clearCookies();
+    try {
+      await fs.promises.writeFile('state.json', '{}', 'utf8');
+      await uploadStateFile(username);
+      console.log("Cookies cleared and state file emptied");
+    } catch (error) {
+      console.error("Error clearing state file:", error);
+    }
+
+    await page.goto('https://www.snapchat.com/');
 
     // RELOG
     try {
