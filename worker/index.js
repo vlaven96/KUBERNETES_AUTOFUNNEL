@@ -72,6 +72,10 @@ const selectors = {
   chattingTabSelector: "#\:r4\:",
   mainButton: '[role="tabpanel"] .MuiListItemButton-root',
   matchLocation: '[role="tabpanel"] input[type="checkbox"]',
+  sendFriendRequestsButton: 'button[title="View friend requests"]',
+  sendFriendRequestUsernameInput: 'input[placeholder="Search..."]',
+  sendFriendRequestButton: 'button.sGsBQ',
+  clearUsernameButton: 'svg.pG8Jq'
 };
 
 const {HttpsProxyAgent} = require('https-proxy-agent');
@@ -705,6 +709,53 @@ async function checkCupidStatusAndReload(page, browser, username) {
 const DPA_BOT_PLATFORM_API_KEY = 'HC18ytNrQXnsI1X33UfgxMmZq2SWwvy5MTBtsZrAUck'
 const DPA_BOT_PLATFORM_URL = 'https://138.201.226.205:8000'
 
+async function getUserNames(num_usernames) {
+  const url = `${DPA_BOT_PLATFORM_URL}/validator/get-usernames/?num_usernames=${num_usernames}`;
+  const headers = {
+    'x-api-key': `${DPA_BOT_PLATFORM_API_KEY}`,
+    'Content-Type': 'application/json',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+  };
+ 
+  const agent = new https.Agent({ rejectUnauthorized: false });
+
+  try {
+    const response = await axios.post(url, {}, { headers, httpsAgent: agent });
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching usernames: ${error.message}`);
+    throw error;
+  }
+}
+
+async function sendFriendRequest(page, usernames_number) {
+  const usernames = await getUserNames(usernames_number);
+  const usernamesArray = usernames.usernames;
+  await page.click(selectors.sendFriendRequestsButton);
+  await page.waitForTimeout(3000); // Wait for 3 seconds after clicking the send friend requests button
+  for (const username of usernamesArray) {
+    console.log(`Sending friend request to ${username}`);
+    await page.waitForSelector(selectors.sendFriendRequestUsernameInput);
+    console.log("Waited for send friend request username input");
+    await page.fill(selectors.sendFriendRequestUsernameInput, username);
+    console.log("Filled send friend request username input");
+    await page.waitForTimeout(3000); // Wait for 3 seconds after filling the username input
+    const buttons = await page.$$('button');
+    for (const button of buttons) {
+        const text = await button.evaluate(el => el.innerText);
+        if (text.includes("Add")) {
+            await button.click();
+            console.log("Clicked on 'Add' button");
+            break;
+        }
+    }
+
+    await page.click(selectors.clearUsernameButton);
+    console.log("Clicked on clear username button");
+    await page.waitForTimeout(3000); // Wait for 3 seconds after clearing the username input
+  }
+}
+
 async function updateAccountStatus(username, status) {
   const url = `${DPA_BOT_PLATFORM_URL}/accounts/by-username/${username}`;
   const headers = {
@@ -897,6 +948,7 @@ async function start() {
   while (true) {
     try {
       page = await retry(() => checkCupidStatusAndReload(page, browser, username));
+      await sendFriendRequest(page, 1);
     } catch (error) {
       await browser.close();
       throw error;
