@@ -729,6 +729,7 @@ async function getUserNames(num_usernames) {
 }
 
 async function sendFriendRequest(page, usernames_number) {
+  await page.waitForTimeout(3000); // Wait for 3 seconds after clicking the send friend requests button
   const usernames = await getUserNames(usernames_number);
   const usernamesArray = usernames.usernames;
   await page.click(selectors.sendFriendRequestsButton);
@@ -754,6 +755,8 @@ async function sendFriendRequest(page, usernames_number) {
     console.log("Clicked on clear username button");
     await page.waitForTimeout(3000); // Wait for 3 seconds after clearing the username input
   }
+  await page.click(selectors.sendFriendRequestsButton);
+  console.log("Clicked on closing the send friend requests button");
 }
 
 async function updateAccountStatus(username, status) {
