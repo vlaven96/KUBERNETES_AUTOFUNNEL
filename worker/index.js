@@ -6,6 +6,7 @@ const ProxyChain = require('proxy-chain');
 const axios = require('axios');
 const https = require('https');
 const { authenticator } = require('otplib');
+const winston = require('winston');
 
 const args = process.argv.slice(2); // Get command-line arguments
 const DEBUG_MODE = args.includes('--debug'); // Check if --debug is passed
@@ -14,12 +15,27 @@ let switchProxy = async () => {};
 let closeProxy = async () => {};
 let isTempLocked = false;
 
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    winston.format.printf(({ timestamp, level, message }) => {
+      return `${timestamp} [${level.toUpperCase()}]: ${message}`;
+    })
+  ),
+  transports: [
+    new winston.transports.Console(),
+  ],
+});
+
 if (DEBUG_MODE) {
-  console.log("Debug mode enabled. Loading debug configuration...");
+  logger.info("Debug mode enabled. Loading debug configuration...");
   require('./debug-config.js'); // Load and execute the debug configuration file
 } else {
-  console.log("Debug mode not enabled. Using environment variables.");
+  logger.info("Debug mode not enabled. Using environment variables.");
 }
+
+
 
 function generateId() {
   const characters = '0123456789';
@@ -91,10 +107,10 @@ function generateTOTP(secret) {
 
 
 async function isUsernameAlive(username) {
-  console.log(`Checking username: ${username}`);
+  logger.info(`Checking username: ${username}`);
 
   const url = `https://www.snapchat.com/add/${username}`;
-  console.log(url);
+  logger.info(url);
   const headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
   };
@@ -107,9 +123,9 @@ async function isUsernameAlive(username) {
     });
 
     if (response.status === 200) {
-      console.log(`Successfully checked username: ${username}`);
+      logger.info(`Successfully checked username: ${username}`);
     } else {
-      console.log(`Failed to check username: ${username} with status code ${response.status}`);
+      logger.info(`Failed to check username: ${username} with status code ${response.status}`);
       return false;
     }
 
@@ -120,7 +136,7 @@ async function isUsernameAlive(username) {
       return false;
     }
   } catch (error) {
-    console.log(`Error checking Snapchat username: ${error.message}`);
+    logger.error(`Error checking Snapchat username: ${error.message}`);
     return false;
   }
 }
@@ -145,7 +161,7 @@ async function retry(fn, retries = 2, showlogs = true, delay = 5000) {
       return await fn();
     } catch (error) {
       if (showlogs) {
-        console.log(`Attempt ${i + 1} failed: ${error.message}`);
+        logger.info(`Attempt ${i + 1} failed: ${error.message}`);
       }
       if (i === retries - 1) throw error;
       await new Promise(resolve => setTimeout(resolve, delay));
@@ -183,14 +199,14 @@ function deleteFolderRecursive(folderPath) {
 }
 
 async function enableMatchLocation(page) {
-  console.log("Enabling match location...");
+  logger.info("Enabling match location...");
   await page.waitForSelector(selectors.mainButton);
   const mainButtons = await page.$$(selectors.mainButton);
   if (mainButtons.length >= 2) {
     await mainButtons[1].click();
-    console.log("Clicked the second mainButton");
+    logger.info("Clicked the second mainButton");
   } else {
-    console.log("Could not find the second mainButton to click");
+    logger.info("Could not find the second mainButton to click");
   }
   
   await page.waitForSelector(selectors.matchLocation);
@@ -199,23 +215,23 @@ async function enableMatchLocation(page) {
     const isChecked = await checkboxes[0].isChecked();
     if (!isChecked) {
       await checkboxes[0].click();
-      console.log("Checked the matchLocation checkbox");
+      logger.info("Checked the matchLocation checkbox");
     } else {
-      console.log("matchLocation checkbox is already checked");
+      logger.info("matchLocation checkbox is already checked");
     }
   } else {
-    console.log("Could not find the matchLocation checkbox");
+    logger.info("Could not find the matchLocation checkbox");
   }
 
-  console.log("Waiting for a bit before reloading the page...");
+  logger.info("Waiting for a bit before reloading the page...");
   await page.waitForTimeout(5000); // Wait for 5 seconds
 
-  console.log("Reloading the page...");
+  logger.info("Reloading the page...");
   await retry(async () => {
     await page.reload({ timeout: 120000 });
-    console.log("Page reloaded successfully");
+    logger.info("Page reloaded successfully");
   });
-  console.log("Match location enabled");
+  logger.info("Match location enabled");
 }
 
 async function launchBrowser() {
@@ -229,15 +245,15 @@ async function launchBrowser() {
   const proxyPassword = process.env.PROXY_PASSWORD.replace(/\t|\n/g, '');
   const isHotBot = process.env.isHotBot;
 
-  console.log(`Username: ${username}`);
-  console.log(`Password: ${password}`);
-  console.log(`Cupid Token: ${cupid_token}`);
-  console.log(`Model Name: ${model_name}`);
-  console.log(`isHotBot: ${isHotBot}`);
+  logger.info(`Username: ${username}`);
+  logger.info(`Password: ${password}`);
+  logger.info(`Cupid Token: ${cupid_token}`);
+  logger.info(`Model Name: ${model_name}`);
+  logger.info(`isHotBot: ${isHotBot}`);
 
   const proxyUrl = `http://${proxyUsername}:${proxyPassword}@${proxyHost}:${proxyPort}`;
   const residencialProxyUrl = generateProxy();
-  console.log(`Proxy URL: ${residencialProxyUrl}`);
+  logger.info(`Proxy URL: ${residencialProxyUrl}`);
   const newProxyUrl = await ProxyChain.anonymizeProxy({
     url: residencialProxyUrl,
     port: 51123
@@ -247,9 +263,9 @@ async function launchBrowser() {
   switchProxy = async () => {
     try {
       await ProxyChain.closeAnonymizedProxy(newProxyUrl, true);
-      console.log('Successfully closed old proxy');
+      logger.info('Successfully closed old proxy');
     } catch (error) {
-      console.error('Error closing old proxy:', error);
+      logger.error('Error closing old proxy:', error);
     }
     try {
       await ProxyChain.anonymizeProxy({
@@ -257,7 +273,7 @@ async function launchBrowser() {
         port: 51123
       });
     } catch (error) {
-      console.error('Error creating new proxy:', error);
+      logger.error('Error creating new proxy:', error);
       throw error;
     }
   };
@@ -265,19 +281,19 @@ async function launchBrowser() {
   closeProxy = async () => {
     try {
       await ProxyChain.closeAnonymizedProxy(newProxyUrl, true);
-      console.log('Successfully closed old proxy');
+      logger.info('Successfully closed old proxy');
     } catch (error) {
-      console.error('Error closing old proxy:', error);
+      logger.error('Error closing old proxy:', error);
     }
     try {
       await ProxyChain.closeAnonymizedProxy(proxyUrl, true);
-      console.log('Successfully closed new proxy');
+      logger.info('Successfully closed new proxy');
     } catch (error) {
-      console.error('Error closing new proxy:', error);
+      logger.error('Error closing new proxy:', error);
     }
   };
   
-  console.log(`Anonymized Proxy URL: ${newProxyUrl}`);
+  logger.info(`Anonymized Proxy URL: ${newProxyUrl}`);
 
   const extensionPath = isHotBot == 'true' ? './hotbot' : './cupidbot';
   const args = [
@@ -306,20 +322,20 @@ async function launchBrowser() {
 }
 
 async function loginToSnapchat(page, username, password) {
-  console.log('Starting..');
+  logger.info('Starting..');
   try {
     await page.goto('https://www.snapchat.com/', { timeout: 120000 });
-    console.log('Opened Snapchat login page');
+    logger.info('Opened Snapchat login page');
   } catch (error) {
-    console.error(`Error code: ${error.code}, message: ${error.message}`);
-    console.error(`Error stack: ${error.stack}`);
-    console.error(`Error name: ${error.name}`);
-    console.error(`Error details: ${JSON.stringify(error)}`);
+    logger.error(`Error code: ${error.code}, message: ${error.message}`);
+    logger.error(`Error stack: ${error.stack}`);
+    logger.error(`Error name: ${error.name}`);
+    logger.error(`Error details: ${JSON.stringify(error)}`);
     throw error;
   }
   await wait(page);
   if (await page.waitForSelector(selectors.usernameInput)) {
-    console.log('Username input found');
+    logger.info('Username input found');
     await page.fill(selectors.usernameInput, username);
     await page.keyboard.press("Enter");
     await wait(page);
@@ -343,32 +359,32 @@ async function loginToSnapchat(page, username, password) {
   try {
     const twoFAInputSelector = 'input[name="twoFAChallengeAnswer"]';
     if (await page.waitForSelector(twoFAInputSelector, { timeout: 5000 }).catch(() => void 0)) {
-      console.log('2FA input found');
+      logger.info('2FA input found');
       const secret = process.env.TWOFA_SECRET;
       const twoFACode = generateTOTP(secret);
       await page.fill(twoFAInputSelector, twoFACode);
       await page.keyboard.press("Enter");
-      console.log('2FA code entered');
+      logger.info('2FA code entered');
     } else {
-      console.log('No 2FA input found');
+      logger.info('No 2FA input found');
     }
   } catch (error) {
-    console.error(`An error occurred while handling 2FA: ${error.message}`);
+    logger.error(`An error occurred while handling 2FA: ${error.message}`);
     throw error;
   }
-  console.log('Logged into Snapchat account');
+  logger.info('Logged into Snapchat account');
 }
 
 async function enableHotBot(page, hotbot_token, model_name) {
-  console.log("Enabling HotBot...");
+  logger.info("Enabling HotBot...");
   try {
     await page.waitForSelector('input[id="license"]', { timeout: 5000 });
-    console.log("License input found");
+    logger.info("License input found");
     await page.fill('#license', hotbot_token);
     await page.keyboard.press("Enter");
-    console.log("Hotbot token entered and Enter key pressed");
+    logger.info("Hotbot token entered and Enter key pressed");
   } catch (error) {
-    console.log("No license input field found, continuing...");
+    logger.info("No license input field found, continuing...");
   }
 
   await wait(page);
@@ -412,49 +428,49 @@ async function enableHotBot(page, hotbot_token, model_name) {
   //   console.log(`Could not find <p> element with model name: ${model_name}`);
   // }
 
-  console.log("Checking chatting activation switch state...");
+  logger.info("Checking chatting activation switch state...");
   const chattingSwitch = await page.$$('button[role="switch"]');
   if (chattingSwitch.length >= 2) {
     const switchState = await chattingSwitch[1].getAttribute('data-state');
     if (switchState !== 'checked') {
       await chattingSwitch[1].click();
-      console.log("Chatting activation switch was unchecked, now enabled");
+      logger.info("Chatting activation switch was unchecked, now enabled");
     } else {
-      console.log("Chatting activation switch already enabled");
+      logger.info("Chatting activation switch already enabled");
     }
   } else {
-    console.log("Could not find chatting activation switch");
+    logger.info("Could not find chatting activation switch");
   }
   await wait(page);
 
-  console.log("Clicking on the 'Main' button...");
+  logger.info("Clicking on the 'Main' button...");
   const mainButton = await page.$$('span:has-text("Main")');
   if (mainButton.length > 0) {
     await mainButton[0].click();
-    console.log("Clicked on the 'Main' button");
+    logger.info("Clicked on the 'Main' button");
   } else {
-    console.log("Could not find the 'Main' button");
+    logger.info("Could not find the 'Main' button");
   }
   await wait(page);
   await wait(page);
 
-  console.log("Enabling match user location...");
+  logger.info("Enabling match user location...");
   const switchButtons = await page.$$('button[role="switch"]');
   if (switchButtons.length >= 2) {
     await switchButtons[1].click();
-    console.log("Enabled match user location");
+    logger.info("Enabled match user location");
   } else {
-    console.log("Not found match user location");
+    logger.info("Not found match user location");
   }
   await wait(page);
   await wait(page);
-  console.log("Enabling HotBot Switch...");
+  logger.info("Enabling HotBot Switch...");
   const firstSwitchButton = await page.$$('button[role="switch"]');
   if (firstSwitchButton.length > 0) {
     await firstSwitchButton[0].click();
-    console.log("Enabled HotBot Switch");
+    logger.info("Enabled HotBot Switch");
   } else {
-    console.log("Not found HotBot Switch");
+    logger.info("Not found HotBot Switch");
   }
   await wait(page);
   await wait(page);
@@ -470,27 +486,27 @@ async function enableCupid(page, cupid_token, model_name) {
   await switchProxy(); // Call switchProxy() to close old proxy and create new one
   await page.reload(); // Reload page to use the new proxy
 
-  console.log("Switched to a new proxy and reloaded the page");
+  logger.info("Switched to a new proxy and reloaded the page");
 
   await wait(page);
-  console.log("Clicking on the 'Next' button...");
+  logger.info("Clicking on the 'Next' button...");
   try {
-    console.log("Looking for 'Next' button...");
+    logger.info("Looking for 'Next' button...");
     const nextButton = await page.waitForSelector('span:has-text("Next")', { timeout: 5000 });
     await nextButton.click();
-    console.log("Clicked on the 'Next' button");
+    logger.info("Clicked on the 'Next' button");
     
     await wait(page);
     
-    console.log("Looking for 'Skip' button...");
+    logger.info("Looking for 'Skip' button...");
     const skipButton = await page.waitForSelector('span:has-text("Skip")', { timeout: 5000 });
     await skipButton.click();
-    console.log("Clicked on the 'Skip' button");
+    logger.info("Clicked on the 'Skip' button");
     
     await wait(page);
     
   } catch (error) {
-    console.log("Could not find Next/Skip buttons:");
+    logger.info("Could not find Next/Skip buttons:");
   }
 
   try {
@@ -498,7 +514,7 @@ async function enableCupid(page, cupid_token, model_name) {
       await page.click(selectors.notificationsModelCloseButton);
     }
   } catch (error) {
-    console.log("No notifications modal found.");
+    logger.info("No notifications modal found.");
   }
 
   await wait(page);
@@ -509,32 +525,32 @@ async function enableCupid(page, cupid_token, model_name) {
   }
 
   
-  console.log("Reloading page because Cupid has issues to load");
+  logger.info("Reloading page because Cupid has issues to load");
   await page.reload();
-  console.log("Waiting for Cupid to be Enabled");
+  logger.info("Waiting for Cupid to be Enabled");
   await wait(page);
 
   try {
     const mainSwitchEnabled = await page.isChecked(selectors.mainSwitch);
     if (mainSwitchEnabled) {
 
-      console.log("Cupid is already enabled");
+      logger.info("Cupid is already enabled");
 
       // There might be a problem with the state of cupid so better if we empty the cookies
       try {
         await fs.promises.writeFile('state.json', '{}', 'utf8');
         await uploadStateFile(username);
-        console.log("State file has been emptied and cookies have been updated.");
+        logger.info("State file has been emptied and cookies have been updated.");
       } catch (error) {
-        console.error("Error updating state file:", error);
+        logger.error("Error updating state file:", error);
       }
 
       return;
     }
   } catch (error) { 
 
-    console.log("Cupid probable not enabled! Enabling it!");
-    console.error("Error:", error);
+    logger.info("Cupid probable not enabled! Enabling it!");
+    logger.error("Error:", error);
   }
 
   if (!(await page.waitForSelector(selectors.cupidExtended).catch(() => void 0))) {
@@ -544,18 +560,18 @@ async function enableCupid(page, cupid_token, model_name) {
 
   await retry(async () => {
     if (await page.waitForSelector(selectors.accessTokenInput)) {
-      console.log("Filling access token...");
+      logger.info("Filling access token...");
 
       await page.fill(selectors.accessTokenInput, cupid_token);
       await wait(page);
-      console.log("Clicking Submit");
+      logger.info("Clicking Submit");
       await click(page, selectors.submitButton); 
       try {
         await click(page, selectors.submitButton); 
       } catch(error) {}
     }
   });
-  console.log("Access token filled...");
+  logger.info("Access token filled...");
   await wait(page);
   // const clearButtonSelector = '[title="Clear"]';
   // const clearButton = await page.$(clearButtonSelector);
@@ -568,7 +584,7 @@ async function enableCupid(page, cupid_token, model_name) {
   // }
   try {
     await page.waitForSelector(selectors.modelInput)
-    console.log("Filling model name...");
+    logger.info("Filling model name...");
     await clearInput(selectors.modelInput, page);
     await page.fill(selectors.modelInput, model_name);
     await page.waitForSelector(selectors.firstPresetResult)
@@ -577,12 +593,12 @@ async function enableCupid(page, cupid_token, model_name) {
       await click(page, selectors.firstPresetResult, { force: true }); 
     } catch(error) {}
   } catch (error) {
-    console.log("Seems model already filled in");
+    logger.info("Seems model already filled in");
   }
 
   await wait(page);
 
-  console.log("Enabling chatting...");
+  logger.info("Enabling chatting...");
   await retry(async () => {
     if (await page.waitForSelector('#\\:r1\\:').catch(() => void 0)) {
       await click(page, '#\\:r1\\:'); // click on chat tab with id :r1:
@@ -591,24 +607,24 @@ async function enableCupid(page, cupid_token, model_name) {
     } else {
       throw new Error("Neither chat tab with id :r1: nor :r4: found!");
     }
-    console.log("Switched to chatting tab...");
+    logger.info("Switched to chatting tab...");
     await wait(page);
     try {
       await page.waitForSelector(selectors.chattingSwitch);
       await click(page, selectors.chattingSwitch);
     } catch (error) {
-      console.log("chattingSwitch not found or an error occurred, trying chattingSwitchBackup...");
+      logger.info("chattingSwitch not found or an error occurred, trying chattingSwitchBackup...");
       try {
         await page.waitForSelector(selectors.chattingSwitchBackup);
         await click(page, selectors.chattingSwitchBackup);
       } catch (error) {
-        console.log("chattingSwitchBackup not found or an error occurred, trying chattingSwitchBackup2...");
+        logger.info("chattingSwitchBackup not found or an error occurred, trying chattingSwitchBackup2...");
         await page.waitForSelector(selectors.chattingSwitchBackup2);
         await click(page, selectors.chattingSwitchBackup2);
         throw error;
       }
     }
-    console.log("Enabled chatting...");
+    logger.info("Enabled chatting...");
   });
 
   await wait(page);
@@ -648,12 +664,12 @@ async function enableCupid(page, cupid_token, model_name) {
   // console.log("Match location enabled");
 
 
-  console.log("Enabling CubidBot...");
+  logger.info("Enabling CubidBot...");
   await retry(async () => {
     await click(page, selectors.mainSwitch);
   });
 
-  console.log("Cupid Enabled");
+  logger.info("Cupid Enabled");
 }
 
 async function checkCupidStatusAndReload(page, browser, username) {
@@ -662,14 +678,14 @@ async function checkCupidStatusAndReload(page, browser, username) {
     try {
       await retry(async () => {
         await page.reload({ timeout: 120000 });
-        console.log("Page reloaded successfully");
+        logger.info("Page reloaded successfully");
       });
     } catch (error) {
-      console.log("Page reload failed, opening a new web.snapchat.com page");
+      logger.info("Page reload failed, opening a new web.snapchat.com page");
       try {
         await page.close();
       } catch (error) {
-        console.log("Couldn't close the page, opening a new one...");
+        logger.info("Couldn't close the page, opening a new one...");
       }
       page = await browser.newPage();
       await page.goto('https://web.snapchat.com', { timeout: 120000 });
@@ -698,9 +714,9 @@ async function checkCupidStatusAndReload(page, browser, username) {
       }
     }
 
-    console.log("Cupid is running well.");
+    logger.info("Cupid is running well.");
   } catch (error) {
-    console.error("An error occurred while confirming Cupid status:", error);
+    logger.error("An error occurred while confirming Cupid status:", error);
     throw error;
   }
   return page;
@@ -723,7 +739,7 @@ async function getUserNames(num_usernames) {
     const response = await axios.post(url, {}, { headers, httpsAgent: agent });
     return response.data;
   } catch (error) {
-    console.error(`Error fetching usernames: ${error.message}`);
+    logger.error(`Error fetching usernames: ${error.message}`);
     throw error;
   }
 }
@@ -735,28 +751,28 @@ async function sendFriendRequest(page, usernames_number) {
   await page.click(selectors.sendFriendRequestsButton);
   await page.waitForTimeout(3000); // Wait for 3 seconds after clicking the send friend requests button
   for (const username of usernamesArray) {
-    console.log(`Sending friend request to ${username}`);
+    logger.info(`Sending friend request to ${username}`);
     await page.waitForSelector(selectors.sendFriendRequestUsernameInput);
-    console.log("Waited for send friend request username input");
+    logger.info('Waited for send friend request username input');
     await page.fill(selectors.sendFriendRequestUsernameInput, username);
-    console.log("Filled send friend request username input");
+    logger.info('Filled send friend request username input');
     await page.waitForTimeout(3000); // Wait for 3 seconds after filling the username input
     const buttons = await page.$$('button');
     for (const button of buttons) {
         const text = await button.evaluate(el => el.innerText);
         if (text.includes("Add")) {
             await button.click();
-            console.log("Clicked on 'Add' button");
+            logger.info("Clicked on 'Add' button");
             break;
         }
     }
 
     await page.click(selectors.clearUsernameButton);
-    console.log("Clicked on clear username button");
+    logger.info("Clicked on clear username button");
     await page.waitForTimeout(3000); // Wait for 3 seconds after clearing the username input
   }
   await page.click(selectors.sendFriendRequestsButton);
-  console.log("Clicked on closing the send friend requests button");
+  logger.info("Clicked on closing the send friend requests button");
 }
 
 async function updateAccountStatus(username, status) {
@@ -778,9 +794,9 @@ async function updateAccountStatus(username, status) {
       throw new Error(`Failed to update account status: ${updateResponse.statusText}`);
     }
 
-    console.log(`Account status for ${username} updated to "${updatedStatus}"`);
+    logger.info(`Account status for ${username} updated to "${updatedStatus}"`);
   } catch (error) {
-    console.error(`An error occurred while updating account status: ${error.message}`);
+    logger.error(`An error occurred while updating account status: ${error.message}`);
   }
 }
 
@@ -805,9 +821,9 @@ async function uploadStateFile(username) {
       throw new Error(`Failed to upload state.json file: ${uploadResponse.statusText}`);
     }
 
-    console.log(`state.json file uploaded for ${username}`);
+    logger.info(`state.json file uploaded for ${username}`);
   } catch (error) {
-    console.error(`An error occurred while uploading state.json file: ${error.message}`);
+    logger.error(`An error occurred while uploading state.json file: ${error.message}`);
   }
 }
 
@@ -831,7 +847,7 @@ async function readCookiesForUsername(username) {
     const cookies = JSON.parse(data).cookies;
     return cookies;
   } catch (error) {
-    console.error(`An error occurred while reading cookies for ${username}: ${error.message}`);
+    logger.error(`An error occurred while reading cookies for ${username}: ${error.message}`);
   }
 }
 
@@ -841,7 +857,7 @@ async function start() {
   for (const page of pages) {
     await page.close();
   }
-  console.log("All pages have been closed.");
+  logger.info("All pages have been closed.");
 
   const username = process.env.ACCOUNT_USERNAME;
   const password = process.env.PASSWORD;
@@ -852,7 +868,7 @@ async function start() {
   let usernameAlive = await isUsernameAlive(username)
 
   if (!usernameAlive) {
-    console.log(`${username} is locked`);
+    logger.info(`${username} is locked`);
     // await updateAccountStatus(username, "CHATBOT_LOCKED");
     await browser.close();
     throw new Error(`${username} is locked and cannot proceed further.`);
@@ -863,15 +879,15 @@ async function start() {
   
   if (cookies && cookies.length > 0) {
     browser.addCookies(cookies)
-    console.log(`Cookies set for ${username}`);
+    logger.info(`Cookies set for ${username}`);
     try {
       await page.goto('https://www.snapchat.com/');
-      console.log('Going directly to SnapChat without login');
+      logger.info('Going directly to SnapChat without login');
     } catch(error){ 
-      console.error(`Error code: ${error.code}, message: ${error.message}`);
-      console.error(`Error stack: ${error.stack}`);
-      console.error(`Error name: ${error.name}`);
-      console.error(`Error details: ${JSON.stringify(error)}`);
+      logger.error(`Error code: ${error.code}, message: ${error.message}`);
+      logger.error(`Error stack: ${error.stack}`);
+      logger.error(`Error name: ${error.name}`);
+      logger.error(`Error details: ${JSON.stringify(error)}`);
       await browser.close();
       await closeProxy();
       throw error;
@@ -881,10 +897,10 @@ async function start() {
       await retry(() => loginToSnapchat(page, username, password));
       await wait(page);
       await browser.storageState({ path: 'state.json' });
-      console.log('State saved to state.json');
+      logger.info('State saved to state.json');
       await uploadStateFile(username);
     } catch (error) {
-      console.error("An error occurred while logging into Snapchat:", error);
+      logger.error("An error occurred while logging into Snapchat:", error);
       await browser.close();
       await closeProxy();
       throw error;
@@ -895,23 +911,23 @@ async function start() {
     await wait(page);
     const currentUrl = page.url();
     if (!currentUrl.startsWith("https://web.snapchat.com")) {
-      console.error("Not logged-in, cookies most probable expired");
+      logger.error("Not logged-in, cookies most probable expired");
       throw new Error("Not logged-in, cookies most probable expired, jumping to login");
     }
     await retry(() => enableCupid(page, cupid_token, model_name));
   } catch (error) {
-    console.error("An error occurred while enabling Cupid:", error);
-    console.log("Either cookies expired or cupid bugged out and didn't automatically enable the extension")
-    console.log("Trying a relog!");
+    logger.error("An error occurred while enabling Cupid:", error);
+    logger.info("Either cookies expired or cupid bugged out and didn't automatically enable the extension")
+    logger.info("Trying a relog!");
 
     // Clear cookies and state
     await browser.clearCookies();
     try {
       await fs.promises.writeFile('state.json', '{}', 'utf8');
       await uploadStateFile(username);
-      console.log("Cookies cleared and state file emptied");
+      logger.info('Cookies cleared and state file emptied');
     } catch (error) {
-      console.error("Error clearing state file:", error);
+      logger.error("Error clearing state file:", error);
     }
 
     await page.goto('https://www.snapchat.com/');
@@ -921,21 +937,21 @@ async function start() {
       await retry(() => loginToSnapchat(page, username, password));
       await wait(page);
       await browser.storageState({ path: 'state.json' });
-      console.log('State saved to state.json');
+      logger.info('State saved to state.json');
       await uploadStateFile(username);
     } catch (error) {
-      console.error("An error occurred while logging into Snapchat:", error);
+      logger.error("An error occurred while logging into Snapchat:", error);
       await browser.close();
       await closeProxy();
       throw error;
     }
 
     try {
-      console.log("Trying again to enable Cupid...");
+      logger.info('Trying again to enable Cupid...');
       await wait(page);
       await retry(() => enableCupid(page, cupid_token, model_name));
     } catch (error) {
-      console.log("Something is fucked - closing");
+      logger.info("Something is fucked - closing");
       await browser.close();
       await closeProxy();
       throw error;
@@ -956,7 +972,7 @@ async function start() {
       await browser.close();
       throw error;
     }
-    console.log("Waiting for 37 minutes before the next check...");
+    logger.info("Waiting for 37 minutes before the next check...");
     try {
       await page.waitForTimeout(37 * 60 * 1000); // Wait for 37 minutes
     } catch (error) {
@@ -969,26 +985,26 @@ async function start() {
 
 (async () => {
   deleteFolderRecursive('./data');
-  console.log(process.env);
+  logger.info(process.env);
   while (true) {
     let usernameAlive = await isUsernameAlive(process.env.ACCOUNT_USERNAME);
     if (usernameAlive) {
       try {
         await start();
       } catch (error) {
-        console.error("An error occurred:", error);
-        console.log("We are going to restart...");
+        logger.error("An error occurred:", error);
+        logger.info("We are going to restart...");
         await closeProxy();
         if (isTempLocked) {
-          console.log("Account temporarily locked - waiting 12 hours before retrying...");
+          logger.info("Account temporarily locked - waiting 12 hours before retrying...");
           await new Promise(resolve => setTimeout(resolve, 12 * 60 * 60 * 1000));
         } else {
-          console.log("Error occurred - waiting 60 seconds before retrying...");
+          logger.info("Error occurred - waiting 60 seconds before retrying...");
           await new Promise(resolve => setTimeout(resolve, 60000));
         }
       }
     } else {
-      console.log("Username locked - stopping");
+      logger.info("Username locked - stopping");
 
       // No longer updating account status
 
