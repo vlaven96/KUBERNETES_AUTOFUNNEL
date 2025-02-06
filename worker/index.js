@@ -967,7 +967,6 @@ async function start() {
   while (true) {
     try {
       page = await retry(() => checkCupidStatusAndReload(page, browser, username));
-      await sendFriendRequest(page, 1);
     } catch (error) {
       await browser.close();
       throw error;
