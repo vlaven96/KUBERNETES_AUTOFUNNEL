@@ -255,7 +255,7 @@ async function launchBrowser() {
   const residencialProxyUrl = generateProxy();
   logger.info(`Proxy URL: ${residencialProxyUrl}`);
   const newProxyUrl = await ProxyChain.anonymizeProxy({
-    url: residencialProxyUrl,
+    url: proxyUrl,
     port: 51123
   });
 
