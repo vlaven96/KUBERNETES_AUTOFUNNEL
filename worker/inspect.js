@@ -111,7 +111,7 @@ async function loginToSnapchat(page, username, password, twofa) {
       await page.keyboard.press("Enter");
   
       if (!(await page.waitForSelector(selectors.passwordInput).catch(() => void 0))) {
-        await updateAccountStatus(username, "CAPTCHA")
+        // await updateAccountStatus(username, "CAPTCHA")
         throw new Error("An error occurred while waiting for the password input field to appear or the account is locked!");
       }
       await page.fill(selectors.passwordInput, password);
