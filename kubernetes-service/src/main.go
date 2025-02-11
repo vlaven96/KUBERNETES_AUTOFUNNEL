@@ -208,8 +208,8 @@ func createDeploymentForAccount(clientset *kubernetes.Clientset, account Snapcha
 							},
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
-									corev1.ResourceMemory: resource.MustParse("1.5Gi"),
-									corev1.ResourceCPU:    resource.MustParse("0.8"),
+									corev1.ResourceMemory: resource.MustParse("1.2Gi"),
+									corev1.ResourceCPU:    resource.MustParse("0.4"),
 								},
 								Limits: corev1.ResourceList{
 									corev1.ResourceMemory: resource.MustParse("4Gi"),
