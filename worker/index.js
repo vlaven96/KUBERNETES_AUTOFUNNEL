@@ -612,6 +612,7 @@ async function enableCupid(page, cupid_token, model_name) {
     try {
       await page.waitForSelector(selectors.chattingSwitch);
       await click(page, selectors.chattingSwitch);
+      logger.info("chattingSwitch found and clicked");
     } catch (error) {
       logger.info("chattingSwitch not found or an error occurred, trying chattingSwitchBackup...");
       try {
