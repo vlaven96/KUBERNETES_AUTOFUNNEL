@@ -600,31 +600,24 @@ async function enableCupid(page, cupid_token, model_name) {
 
   logger.info("Enabling chatting...");
   await retry(async () => {
-    if (await page.waitForSelector('#\\:r1\\:').catch(() => void 0)) {
-      await click(page, '#\\:r1\\:'); // click on chat tab with id :r1:
-    } else if (await page.waitForSelector('#\\:r4\\:').catch(() => void 0)) {
-      await click(page, '#\\:r4\\:'); // click on chat tab with id :r4:
+    if (await page.waitForSelector(selectors.chattingTab).catch(() => void 0)) {
+      await click(page, selectors.chattingTab);
     } else {
-      throw new Error("Neither chat tab with id :r1: nor :r4: found!");
+      throw new Error("Chatting tab not found!");
     }
     logger.info("Switched to chatting tab...");
     await wait(page);
-    try {
-      await page.waitForSelector(selectors.chattingSwitch);
+    await page.waitForSelector(selectors.chattingSwitch);
+    let isChecked = false;
+    while (!isChecked) {
       await click(page, selectors.chattingSwitch);
-      logger.info("chattingSwitch found and clicked");
-    } catch (error) {
-      logger.info("chattingSwitch not found or an error occurred, trying chattingSwitchBackup...");
-      try {
-        await page.waitForSelector(selectors.chattingSwitchBackup);
-        await click(page, selectors.chattingSwitchBackup);
-      } catch (error) {
-        logger.info("chattingSwitchBackup not found or an error occurred, trying chattingSwitchBackup2...");
-        await page.waitForSelector(selectors.chattingSwitchBackup2);
-        await click(page, selectors.chattingSwitchBackup2);
-        throw error;
+      const element = await page.$(selectors.chattingSwitch);
+      isChecked = await element.getAttribute('aria-checked') === 'true';
+      if (!isChecked) {
+        await wait(page); // Give a small delay between attempts
       }
     }
+    logger.info("chattingSwitch found and clicked until enabled");
     logger.info("Enabled chatting...");
   });
 
