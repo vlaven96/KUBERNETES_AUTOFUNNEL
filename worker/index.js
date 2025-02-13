@@ -243,6 +243,7 @@ async function launchBrowser() {
   const proxyPort = process.env.PROXY_PORT.replace(/\t|\n/g, '');
   const proxyUsername = process.env.PROXY_USERNAME.replace(/\t|\n/g, '');
   const proxyPassword = process.env.PROXY_PASSWORD.replace(/\t|\n/g, '');
+  const secret = process.env.TWOFA_SECRET;
   const isHotBot = process.env.isHotBot;
 
   logger.info(`Username: ${username}`);
@@ -252,10 +253,10 @@ async function launchBrowser() {
   logger.info(`isHotBot: ${isHotBot}`);
 
   const proxyUrl = `http://${proxyUsername}:${proxyPassword}@${proxyHost}:${proxyPort}`;
-  const residencialProxyUrl = generateProxy();
-  logger.info(`Proxy URL: ${residencialProxyUrl}`);
+  const residentialProxyUrl = generateProxy();
+  logger.info(`Proxy URL: ${residentialProxyUrl}`);
   const newProxyUrl = await ProxyChain.anonymizeProxy({
-    url: proxyUrl,
+    url: secret ? residentialProxyUrl : proxyUrl,
     port: 51123
   });
 
