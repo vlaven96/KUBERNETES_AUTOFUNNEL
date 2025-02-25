@@ -1,39 +1,16 @@
 {
-    "name": "puppeteer-docker",
+    "name": "snapchat-captcha-solver",
     "version": "1.0.0",
-    "description": "A Docker container running Puppeteer with a Chrome extension.",
-    "main": "index.js",
-    "bin": "captcha_solver.js",
+    "description": "Solves captchas for Snapchat accounts and uploads cookies to DPA Platform",
+    "main": "captcha_solver.js",
     "scripts": {
-        "start": "node index.js",
-        "build": "pkg . --output dist/captcha-solver-macos"
+        "start": "node captcha_solver.js"
     },
     "dependencies": {
-        "@2captcha/captcha-solver": "^1.2.0",
-        "airtable": "^0.12.2",
-        "axios": "^1.7.7",
-        "https-proxy-agent": "^7.0.5",
-        "node-fetch": "^3.3.2",
-        "otplib": "^12.0.1",
-        "playwright": "^1.20.0",
-        "playwright-extra": "^4.0.0",
-        "proxy-chain": "^2.5.3",
-        "puppeteer": "^23.0.0",
-        "puppeteer-extra": "^3.3.6",
-        "puppeteer-extra-plugin-stealth": "^2.11.2",
-        "winston": "^3.17.0"
+        "axios": "^1.6.0",
+        "playwright": "^1.39.0"
     },
-    "packageManager": "pnpm@9.0.5+sha512.a722575c18fd791f9ef71e387c6e16cc03c90d859b9b0998d0428ca0e3220828b32a96e6de73cea34edbc0f50824771b1a69c7ea36b86daa3b89c7e6d9a3d912",
-    "devDependencies": {
-        "pkg": "^5.8.1"
-    },
-    "pkg": {
-        "assets": [
-            "node_modules/playwright/.local-browsers/**/*"
-        ],
-        "scripts": "worker/captcha_solver.js",
-        "targets": [
-            "node18-macos-arm64"
-        ]
+    "engines": {
+        "node": ">=14.0.0"
     }
 }

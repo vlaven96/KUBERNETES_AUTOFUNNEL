@@ -1,67 +1,30 @@
-# Use an official Node.js runtime as a parent image for amd64 architecture
-FROM --platform=linux/amd64 node:18-slim
+FROM mcr.microsoft.com/playwright:v1.39.0-focal
 
-# Install necessary dependencies for Puppeteer and pnpm
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    wget \
-    gnupg \
-    ca-certificates \
-    curl \
-    iputils-ping \
-    fonts-liberation \
-    libappindicator3-1 \
-    libasound2 \
-    libatk1.0-0 \
-    libcairo2 \
-    libcups2 \
-    libdbus-1-3 \
-    libexpat1 \
-    libfontconfig1 \
-    libgbm1 \
-    libgdk-pixbuf2.0-0 \
-    libglib2.0-0 \
-    libgtk-3-0 \
-    libnspr4 \
-    libnss3 \
-    libpango-1.0-0 \
-    libx11-xcb1 \
-    libxcomposite1 \
-    libxcursor1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxi6 \
-    libxrandr2 \
-    libxrender1 \
-    libxss1 \
-    libatk-bridge2.0-0 \
-    libatspi2.0-0 \
-    libxtst6 \
-    --fix-missing && \
-    rm -rf /var/lib/apt/lists/*
+WORKDIR /app
 
-# Install pnpm
-RUN npm install -g pnpm
+# Copy package.json and package-lock.json
+COPY package*.json ./
 
-# Set the working directory
-WORKDIR /usr/src/app
+# Install dependencies
+RUN npm install
 
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
-
-# Install dependencies using pnpm
-RUN pnpm install
-
-# Install Playwright
-RUN pnpm dlx playwright install chromium
-RUN pnpm exec playwright install chromium
-
-# Expose ports 44444, 44445, 44443
-EXPOSE 44444 44445 44443
-
-# Copy the rest of the application code
+# Copy the rest of the application
 COPY . .
 
-# Run the Puppeteer script using pnpm
-CMD ["pnpm", "start"]
+# Set environment variable (will be overridden at runtime)
+ENV DPA_PLATFORM_API_KEY=""
+
+# Install xvfb for headless browser with display
+RUN apt-get update && apt-get install -y \
+    xvfb \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a script to start Xvfb and run the captcha solver
+RUN echo '#!/bin/bash \n\
+    Xvfb :99 -screen 0 1280x720x24 -ac & \n\
+    export DISPLAY=:99 \n\
+    node captcha_solver.js \n\
+    ' > /app/start.sh && chmod +x /app/start.sh
+
+# Run the script when the container starts
+CMD ["/app/start.sh"]
