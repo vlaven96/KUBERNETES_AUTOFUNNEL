@@ -2,7 +2,8 @@
 FROM --platform=linux/amd64 node:18-slim
 
 # Install necessary dependencies for Puppeteer and pnpm
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     wget \
     gnupg \
     ca-certificates \
@@ -37,8 +38,8 @@ RUN apt-get update && apt-get install -y \
     libatk-bridge2.0-0 \
     libatspi2.0-0 \
     libxtst6 \
-    --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+    --fix-missing && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install pnpm
 RUN npm install -g pnpm

@@ -486,6 +486,7 @@ async function enableCupid(page, cupid_token, model_name) {
   // Switch to a new proxy and reload the page to apply it
   await switchProxy(); // Call switchProxy() to close old proxy and create new one
   await page.reload(); // Reload page to use the new proxy
+  await page.screenshot({ path: 'after-proxy-switch.png', fullPage: true });
 
   logger.info("Switched to a new proxy and reloaded the page");
 
@@ -495,6 +496,7 @@ async function enableCupid(page, cupid_token, model_name) {
     logger.info("Looking for 'Next' button...");
     const nextButton = await page.waitForSelector('span:has-text("Next")', { timeout: 5000 });
     await nextButton.click();
+    await page.screenshot({ path: 'after-next-click.png', fullPage: true });
     logger.info("Clicked on the 'Next' button");
     
     await wait(page);
@@ -502,6 +504,7 @@ async function enableCupid(page, cupid_token, model_name) {
     logger.info("Looking for 'Skip' button...");
     const skipButton = await page.waitForSelector('span:has-text("Skip")', { timeout: 5000 });
     await skipButton.click();
+    await page.screenshot({ path: 'after-skip-click.png', fullPage: true });
     logger.info("Clicked on the 'Skip' button");
     
     await wait(page);
@@ -513,6 +516,7 @@ async function enableCupid(page, cupid_token, model_name) {
   try {
     if (await page.waitForSelector(selectors.notificationsModal)) {
       await page.click(selectors.notificationsModelCloseButton);
+      await page.screenshot({ path: 'after-notifications-close.png', fullPage: true });
     }
   } catch (error) {
     logger.info("No notifications modal found.");
@@ -522,19 +526,29 @@ async function enableCupid(page, cupid_token, model_name) {
 
   if (isHotBot == 'true') {
      await enableHotBot(page, cupid_token, model_name);
+     await page.screenshot({ path: 'after-hotbot-enable.png', fullPage: true });
      return;
   }
 
   
   logger.info("Reloading page because Cupid has issues to load");
   await page.reload();
+  await page.screenshot({ path: 'after-cupid-reload.png', fullPage: true });
   logger.info("Waiting for Cupid to be Enabled");
   await wait(page);
+
+  logger.info("Taking screenshot before enabling Cupid...");
+  try {
+    await page.screenshot({ path: 'pre-cupid-state.png', fullPage: true });
+    logger.info("Screenshot saved successfully");
+  } catch (error) {
+    logger.error("Failed to take screenshot:", error);
+  }
 
   try {
     const mainSwitchEnabled = await page.isChecked(selectors.mainSwitch);
     if (mainSwitchEnabled) {
-
+      await page.screenshot({ path: 'cupid-already-enabled.png', fullPage: true });
       logger.info("Cupid is already enabled");
 
       // There might be a problem with the state of cupid so better if we empty the cookies
@@ -549,24 +563,24 @@ async function enableCupid(page, cupid_token, model_name) {
       return;
     }
   } catch (error) { 
-
     logger.info("Cupid probable not enabled! Enabling it!");
     logger.error("Error:", error);
   }
 
   if (!(await page.waitForSelector(selectors.cupidExtended).catch(() => void 0))) {
       await click(page, selectors.openCupidExtended);
+      await page.screenshot({ path: 'after-cupid-extended.png', fullPage: true });
       await wait(page);
     }
 
   await retry(async () => {
     if (await page.waitForSelector(selectors.accessTokenInput)) {
       logger.info("Filling access token...");
-
       await page.fill(selectors.accessTokenInput, cupid_token);
       await wait(page);
       logger.info("Clicking Submit");
-      await click(page, selectors.submitButton); 
+      await click(page, selectors.submitButton);
+      await page.screenshot({ path: 'after-token-submit.png', fullPage: true }); 
       try {
         await click(page, selectors.submitButton); 
       } catch(error) {}
@@ -574,15 +588,20 @@ async function enableCupid(page, cupid_token, model_name) {
   });
   logger.info("Access token filled...");
   await wait(page);
-  // const clearButtonSelector = '[title="Clear"]';
-  // const clearButton = await page.$(clearButtonSelector);
-  // if (clearButton) {
-  //   console.log("Clear button found, clicking it even if not visible...");
-  //   await clearButton.click({ force: true });
-  //   await wait(page);
-  // } else {
-  //   console.log("Clear button not found, proceeding...");
-  // }
+  const clearButtonSelector = 'button[aria-label="Clear"]';
+  await page.evaluate((selector) => {
+    const button = document.querySelector(selector);
+    if (button) button.style.display = 'block';
+  }, clearButtonSelector);
+  const clearButton = await page.$(clearButtonSelector);
+  if (clearButton) {
+    logger.info("Clear button found, clicking it even if not visible...");
+    await clearButton.click({ force: true });
+    await page.screenshot({ path: 'after-clear-click.png', fullPage: true });
+    await wait(page);
+  } else {
+    logger.info("Clear button not found, proceeding...");
+  }
   try {
     await page.waitForSelector(selectors.modelInput)
     logger.info("Filling model name...");
@@ -590,6 +609,7 @@ async function enableCupid(page, cupid_token, model_name) {
     await page.fill(selectors.modelInput, model_name);
     await page.waitForSelector(selectors.firstPresetResult)
     await click(page, selectors.firstPresetResult, { force: true });
+    await page.screenshot({ path: 'after-model-select.png', fullPage: true });
     try {
       await click(page, selectors.firstPresetResult, { force: true }); 
     } catch(error) {}
@@ -603,6 +623,7 @@ async function enableCupid(page, cupid_token, model_name) {
   await retry(async () => {
     if (await page.waitForSelector(selectors.chattingTab).catch(() => void 0)) {
       await click(page, selectors.chattingTab);
+      await page.screenshot({ path: 'after-chatting-tab.png', fullPage: true });
     } else {
       throw new Error("Chatting tab not found!");
     }
@@ -618,53 +639,22 @@ async function enableCupid(page, cupid_token, model_name) {
         await wait(page); // Give a small delay between attempts
       }
     }
+    await page.screenshot({ path: 'after-chatting-enabled.png', fullPage: true });
     logger.info("chattingSwitch found and clicked until enabled");
     logger.info("Enabled chatting...");
   });
 
   await wait(page);
 
-  // console.log("Enabling match location...");
-  // await page.waitForSelector(selectors.mainButton);
-  // const mainButtons = await page.$$(selectors.mainButton);
-  // if (mainButtons.length >= 2) {
-  //   await mainButtons[1].click();
-  //   console.log("Clicked the second mainButton");
-  // } else {
-  //   console.log("Could not find the second mainButton to click");
-  // }
-  
-  // await page.waitForSelector(selectors.matchLocation);
-  // const checkboxes = await page.$$(selectors.matchLocation);
-  // if (checkboxes.length >= 1) {
-  //   const isChecked = await checkboxes[0].isChecked();
-  //   if (!isChecked) {
-  //     await checkboxes[0].click();
-  //     console.log("Checked the matchLocation checkbox");
-  //   } else {
-  //     console.log("matchLocation checkbox is already checked");
-  //   }
-  // } else {
-  //   console.log("Could not find the matchLocation checkbox");
-  // }
-
-  // console.log("Waiting for a bit before reloading the page...");
-  // await page.waitForTimeout(5000); // Wait for 5 seconds
-
-  // console.log("Reloading the page...");
-  // await retry(async () => {
-  //   await page.reload({ timeout: 120000 });
-  //   console.log("Page reloaded successfully");
-  // });
-  // console.log("Match location enabled");
-
-
   logger.info("Enabling CubidBot...");
   await retry(async () => {
     await click(page, selectors.mainSwitch);
   });
+  await page.screenshot({ path: 'after-cupid-enabled.png', fullPage: true });
 
   logger.info("Cupid Enabled");
+  await wait(page);
+  await wait(page);
 }
 
 async function checkCupidStatusAndReload(page, browser, username) {
@@ -673,6 +663,7 @@ async function checkCupidStatusAndReload(page, browser, username) {
     try {
       await retry(async () => {
         await page.reload({ timeout: 120000 });
+        await page.screenshot({ path: 'after-page-reload.png', fullPage: true });
         logger.info("Page reloaded successfully");
       });
     } catch (error) {
@@ -684,6 +675,7 @@ async function checkCupidStatusAndReload(page, browser, username) {
       }
       page = await browser.newPage();
       await page.goto('https://web.snapchat.com', { timeout: 120000 });
+      await page.screenshot({ path: 'after-new-page.png', fullPage: true });
     }
     await wait(page);
 
@@ -705,8 +697,16 @@ async function checkCupidStatusAndReload(page, browser, username) {
         if (isCupidEnabled) break;
       }
       if (!isCupidEnabled) {
+        await page.screenshot({ path: 'cupid-not-enabled.png', fullPage: true });
+        logger.info("Cupid is not enabled, attempting to enable it...");
+        await retry(async () => {
+          await click(page, selectors.mainSwitch);
+          await page.screenshot({ path: 'after-enabling-cupid.png', fullPage: true });
+        });
+        await wait(page);
         throw new Error("Cupid is not enabled.");
       }
+      await page.screenshot({ path: 'cupid-enabled.png', fullPage: true });
     }
 
     logger.info("Cupid is running well.");
