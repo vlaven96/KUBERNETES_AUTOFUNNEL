@@ -16,7 +16,7 @@ const httpsAgent = new https.Agent({
 async function getAccountsWithoutCookies() {
   try {
     console.log('Fetching accounts without cookies from DPA Platform...');
-    const response = await axios.get(`${DPA_PLATFORM_API_URL}/accounts?statuses=GOOD_STANDING&has_cookies=false`, {
+    const response = await axios.get(`${DPA_PLATFORM_API_URL}/accounts?statuses=GOOD_STANDING&has_quick_adds=true&has_cookies=false`, {
       headers: {
         'x-api-key': DPA_PLATFORM_API_KEY,
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
